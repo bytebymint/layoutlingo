@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}{{ document.original_filename }} — DocIntel{% endblock %}
+
+{% block content %}
+<div class="viewer-shell glass">
+    <!-- TOP BAR -->
+    <div class="viewer-topbar">
+        <a href="{{ url_for('main.analyze_page') }}" class="back-btn">
+            <i class="bi bi-arrow-left"></i> <span>Analyze</span>
+        </a>
+        <a href="{{ url_for('main.compare_page') }}" class="back-btn" style="margin-left: 0.8rem;">
+            <i class="bi bi-file-earmark-diff"></i> <span>Compare</span>
+        </a>
+        <div class="doc-title-bar">
+            {% if document.file_type == 'pdf' %}
+            <span class="file-icon-sm pdf"><i class="bi bi-file-earmark-pdf-fill"></i></span>
+            {% else %}
+            <span class="file-icon-sm img"><i class="bi bi-file-earmark-image-fill"></i></span>
+            {% endif %}
+            <span class="doc-title-name" title="{{ document.original_filename }}">{{ document.original_filename }}</span>
+        </div>
+        <div class="doc-meta-badges">
+            {% if document.doc_type %}
+            <span class="meta-badge type">{{ document.doc_type }}</span>
+            {% endif %}
+            <span class="meta-badge conf"><i class="bi bi-shield-check-fill"></i> {{ (document.confidence_score * 100) | round(0) | int }}% OCR</span>
+        </div>
+    </div>
+
+    <div class="viewer-body">
+        <!-- LEFT: Document preview -->
+        <div class="viewer-preview">
+            <div class="preview-label">Preview</div>
+            <div class="preview-pane">
+                {% if document.file_type == 'pdf' %}
+                <iframe src="/uploads/{{ document.filename }}" class="pdf-frame" title="PDF Preview"></iframe>
+                {% else %}
+                <img src="/uploads/{{ document.filename }}" class="img-frame" alt="Document preview" />
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- MIDDLE: Extracted Data & OCR tabs -->
+        <div class="viewer-analysis">
+            <div class="tab-bar">
+                <button class="tab-pill active" id="tab-btn-meta" onclick="switchTab('meta')"><i class="bi bi-braces-asterisk"></i> Extracted Data</button>
+                <button class="tab-pill" id="tab-btn-ocr" onclick="switchTab('ocr')"><i class="bi bi-file-earmark-text"></i> Raw Text</button>
+            </div>
+
+            <!-- Metadata tab -->
+            <div class="tab-content" id="tab-meta">
+                <div class="extracted-section">
+                    <div class="ex-card"><span class="ex-label">Company</span><span class="ex-val">{{ document.parsed_extracted_data.get('company', '—') }}</span><button class="copy-btn" title="Copy">Copy</button></div>
+                    <div class="ex-card"><span class="ex-label">Date</span><span class="ex-val mono">{{ document.parsed_extracted_data.get('date', '—') }}</span><button class="copy-btn" title="Copy">Copy</button></div>
+                    <div class="ex-card"><span class="ex-label">Total / ID</span><span class="ex-val accent">{{ document.parsed_extracted_data.get('total', '—') }}</span><button class="copy-btn" title="Copy">Copy</button></div>
+                </div>
+                {% if document.parsed_extracted_data.get('details') %}
+                <div class="details-grid">
+                    {% for key, val in document.parsed_extracted_data.get('details').items() %}
+                    <div class="detail-item"><span class="detail-key">{{ key.replace('_', ' ').title() }}</span><span class="detail-val" title="{{ val }}">{{ val }}</span><button class="copy-btn" title="Copy">Copy</button></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <details class="json-details"><summary><i class="bi bi-code-slash"></i> Raw JSON</summary><pre class="json-pre">{{ document.extracted_data }}</pre></details>
+            </div>
+
+            <!-- OCR Text tab -->
+            <div class="tab-content" id="tab-ocr" style="display:none;">
+                <pre class="ocr-pre">{{ document.ocr_text or 'No text extracted.' }}</pre>
+            </div>
+        </div>
+
+        <!-- RIGHT: Chat panel -->
+        <div class="viewer-chat">
+            <div class="chat-header">
+                <i class="bi bi-robot"></i>
+                <div>
+                    <div class="chat-header-title">AI Document Chat</div>
+                    <div class="chat-header-sub">Powered by AI · RAG-based</div>
+                </div>
+                <span class="online-dot"></span>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-bubble ai"><div class="bubble-avatar"><i class="bi bi-robot"></i></div><div class="bubble-text">Hello! I've read <strong>{{ document.original_filename }}</strong> in full. Ask me anything about its contents and I'll answer based strictly on the document.</div></div>
+                {% for msg in chat_history %}
+                <div class="chat-bubble {{ msg.sender }}"><div class="bubble-avatar">{% if msg.sender == 'ai' %}<i class="bi bi-robot"></i>{% else %}<i class="bi bi-person-fill"></i>{% endif %}</div><div class="bubble-text">{{ msg.message | safe }}</div></div>
+                {% endfor %}
+            </div>
+            <form class="chat-input-row" id="chat-form" data-doc-id="{{ document.id }}">
+                <input type="text" id="chat-input" class="chat-input-field" placeholder="Ask a question about this document…" autocomplete="off" required />
+                <button type="submit" class="chat-send-btn" id="chat-send-btn"><i class="bi bi-send-fill"></i></button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Analyze Document Button -->
+<button id="analyzeBtn" class="fab-analyze-btn" data-doc-id="{{ document.id }}">
+    <i class="bi bi-lightning-charge-fill"></i> Analyze Document
+</button>
+
+<!-- Analysis Loading Overlay -->
+<div id="analyzeOverlay" class="analyze-overlay" style="display:none;">
+    <div class="analyze-loader-card glass">
+        <div class="analyze-loader-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+        <h3 class="analyze-loader-title">AI Document Analysis</h3>
+        <div class="analyze-progress-bar"><div id="analyzeProgressFill" class="analyze-progress-fill"></div></div>
+        <div class="analyze-progress-info">
+            <span id="analyzePercent" class="analyze-percent">0%</span>
+            <span id="analyzeTimeLeft" class="analyze-time-left">~30s remaining</span>
+        </div>
+        <p id="analyzeStatus" class="analyze-loader-text">Initializing analysis engine…</p>
+        <p id="analyzeDetail" class="analyze-loader-detail">Preparing document context and chunks</p>
+    </div>
+</div>
+
+<!-- Analysis Report Modal/Panel -->
+<div id="analysisPanel" class="analysis-panel" style="display:none;">
+    <div class="analysis-panel-inner glass">
+        <div class="analysis-header">
+            <h2><i class="bi bi-file-earmark-richtext-fill"></i> AI Analysis Report</h2>
+            <div class="analysis-actions">
+                <button id="copyReportBtn" class="analysis-action-btn" title="Copy Report"><i class="bi bi-clipboard"></i> Copy</button>
+                <button id="closeAnalysisBtn" class="analysis-action-btn close" title="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+        <div id="analysisContent" class="analysis-content"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-pill').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.getElementById('tab-btn-' + tab).classList.add('active');
+}
+</script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/analyze.js') }}"></script>
+{% endblock %}

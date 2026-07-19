@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% block title %}Compare Documents — DocIntel{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+
+    <!-- ── LEFT SIDEBAR ────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="sidebar-section-label">Platform</div>
+            <a href="{{ url_for('main.index') }}" class="sidebar-link">
+                <i class="bi bi-grid-1x2-fill"></i> Quality Dashboard
+            </a>
+            <a href="{{ url_for('main.analyze_page') }}" class="sidebar-link">
+                <i class="bi bi-search-heart-fill"></i> Analyze
+            </a>
+            <a href="{{ url_for('main.compare_page') }}" class="sidebar-link active">
+                <i class="bi bi-file-earmark-diff-fill"></i> Compare Docs
+            </a>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-section-label">AI Engine</div>
+            <div class="engine-status-widget glass">
+                <div class="status-indicator online"></div>
+                <span>Comparison Active</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────── -->
+    <div class="main-content">
+
+        <!-- Page header -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>AI Document <span class="gradient-text">Comparison</span></h1>
+                <p>Compare two processed documents, map semantic differences, and detect key risks.</p>
+            </div>
+        </div>
+
+        <!-- Selection Workspace -->
+        <div class="workspace">
+            
+            <div class="comparison-selectors-card glass">
+                <form id="compare-form" class="compare-grid-form">
+                    <div class="selector-box">
+                        <label for="doc-select-1"><i class="bi bi-file-earmark-text-fill text-muted"></i> Document A (Before / Source)</label>
+                        <select id="doc-select-1" class="custom-select" required>
+                            <option value="" disabled selected>Select first document...</option>
+                            {% for doc in documents %}
+                            <option value="{{ doc.id }}">{{ doc.original_filename }} ({{ doc.doc_type or 'Unclassified' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="selector-divider">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+
+                    <div class="selector-box">
+                        <label for="doc-select-2"><i class="bi bi-file-earmark-text-fill text-primary"></i> Document B (After / Target)</label>
+                        <select id="doc-select-2" class="custom-select" required>
+                            <option value="" disabled selected>Select second document...</option>
+                            {% for doc in documents %}
+                            <option value="{{ doc.id }}">{{ doc.original_filename }} ({{ doc.doc_type or 'Unclassified' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="compare-action-container">
+                        <button type="submit" id="compare-submit-btn" class="btn-compare-action">
+                            <i class="bi bi-lightning-charge-fill"></i> Compare Documents
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loader / Progress overlay -->
+            <div id="compare-loader" class="compare-loader-container" style="display: none;">
+                <div class="compare-loader-card glass">
+                    <div class="compare-loader-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    <h3>AI Semantic Analysis</h3>
+                    <div class="analyze-progress-bar"><div id="compare-progress-fill" class="analyze-progress-fill"></div></div>
+                    <div class="analyze-progress-info">
+                        <span id="compare-percent">0%</span>
+                        <span id="compare-time-left">~30s remaining</span>
+                    </div>
+                    <p id="compare-status" class="analyze-loader-text">Loading documents...</p>
+                    <p id="compare-detail" class="analyze-loader-detail">Reading OCR text and metadata</p>
+                </div>
+            </div>
+
+            <!-- Comparison Results Output -->
+            <div id="comparison-results" class="comparison-results-container" style="display: none;">
+                
+                <!-- Summary Section -->
+                <div class="results-summary-row">
+                    <div class="summary-card glass total-diffs">
+                        <div class="summary-card-inner">
+                            <span class="summary-num" id="summary-diff-count">0</span>
+                            <span class="summary-lbl">Semantic Changes Detected</span>
+                        </div>
+                    </div>
+                    <div class="summary-card glass match-percent">
+                        <div class="summary-card-inner">
+                            <span class="summary-num" id="summary-match-percent">0%</span>
+                            <span class="summary-lbl">Semantic Similarity Match</span>
+                        </div>
+                    </div>
+                    <div class="summary-card glass overview-card">
+                        <h3>Overview</h3>
+                        <p id="summary-overview-text">No summary available.</p>
+                        <div class="overview-meta">
+                            <span class="meta-pill" id="overview-doc1-type">Type A</span>
+                            <i class="bi bi-arrow-right"></i>
+                            <span class="meta-pill" id="overview-doc2-type">Type B</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Bar -->
+                <div class="export-actions-bar">
+                    <button id="btn-copy-markdown" class="btn-export"><i class="bi bi-markdown-fill"></i> Copy Markdown Report</button>
+                    <button id="btn-copy-json" class="btn-export"><i class="bi bi-braces"></i> Copy JSON Data</button>
+                    <button id="btn-export-print" class="btn-export highlight"><i class="bi bi-printer-fill"></i> Print Report</button>
+                </div>
+
+                <div class="comparison-grid">
+                    <!-- Column Left: Changed information & Risks -->
+                    <div class="comparison-col-left">
+                        <div class="section-header">
+                            <h2><i class="bi bi-pencil-square text-primary"></i> Changed Information</h2>
+                        </div>
+                        <div id="changed-info-list" class="changes-list">
+                            <!-- Dynamically populated changes -->
+                        </div>
+
+                        <div class="section-header risk-header-section">
+                            <h2><i class="bi bi-exclamation-triangle-fill text-warning"></i> Risk &amp; Liability Analysis</h2>
+                        </div>
+                        <div id="risk-analysis-list" class="risks-list">
+                            <!-- Dynamically populated risks -->
+                        </div>
+                    </div>
+
+                    <!-- Column Right: Additions, Removals, and Recommendations -->
+                    <div class="comparison-col-right">
+                        <div class="section-header green-header">
+                            <h2><i class="bi bi-plus-circle-fill text-success"></i> Added Content</h2>
+                        </div>
+                        <div id="added-content-list" class="added-list">
+                            <!-- Dynamically populated additions -->
+                        </div>
+
+                        <div class="section-header red-header">
+                            <h2><i class="bi bi-dash-circle-fill text-danger"></i> Removed Content</h2>
+                        </div>
+                        <div id="removed-content-list" class="removed-list">
+                            <!-- Dynamically populated removals -->
+                        </div>
+
+                        <div class="section-header recommendation-header">
+                            <h2><i class="bi bi-patch-check-fill text-info"></i> Final Recommendation</h2>
+                        </div>
+                        <div class="recommendation-card-box glass">
+                            <p id="recommendation-text">No recommendation provided.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Comparison History -->
+            <div class="history-panel glass">
+                <div class="history-panel-header">
+                    <h2><i class="bi bi-clock-history"></i> Comparison History</h2>
+                </div>
+                <div class="table-scroll">
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>Source Document (A)</th>
+                                <th>Target Document (B)</th>
+                                <th>Compared On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            {% if comparisons %}
+                                {% for comp in comparisons %}
+                                <tr id="comp-row-{{ comp.id }}">
+                                    <td><strong>{{ comp.document_one_name }}</strong></td>
+                                    <td><strong>{{ comp.document_two_name }}</strong></td>
+                                    <td><span class="small-muted">{{ comp.created_at.strftime('%d %b %Y %H:%M') }}</span></td>
+                                    <td class="td-actions">
+                                        <div class="action-group">
+                                            <button class="act-btn act-view btn-load-comp" data-comp-id="{{ comp.id }}" title="View Comparison">
+                                                <i class="bi bi-eye-fill"></i>
+                                            </button>
+                                            <button class="act-btn act-delete btn-delete-comp" data-comp-id="{{ comp.id }}" title="Delete Comparison">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr id="comp-empty-row">
+                                    <td colspan="4" class="empty-state">
+                                        <div class="empty-inner">
+                                            <i class="bi bi-calculator"></i>
+                                            <p>No comparisons run yet. Select two documents above to begin.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /workspace -->
+    </div><!-- /main-content -->
+</div><!-- /app-shell -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+{% endblock %}

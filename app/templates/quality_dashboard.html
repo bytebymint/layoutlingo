@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}DocIntel - Quality Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quality-dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="quality-shell" aria-labelledby="quality-title">
+    <div class="quality-hero">
+        <div>
+            <p class="eyebrow"><span class="eyebrow-dot"></span> Your local document workspace</p>
+            <h1 id="quality-title">Quality you can <em>see.</em></h1>
+            <p class="quality-lede">A clear view of your documents, translations, and the checks that protect every finished file.</p>
+        </div>
+        <div class="hero-actions">
+            <a class="quality-button quality-button-soft" href="{{ url_for('main.analyze_page') }}">
+                <i class="bi bi-plus-lg"></i> Analyze a document
+            </a>
+            <a class="quality-button" href="{{ url_for('main.translate_page') }}">
+                <i class="bi bi-translate"></i> Start a translation
+            </a>
+        </div>
+    </div>
+
+    <section class="quality-metrics" aria-label="Workspace summary">
+        <article class="metric-card metric-documents">
+            <div class="metric-icon"><i class="bi bi-folder2-open"></i></div>
+            <div><span>Documents organized</span><strong>{{ total_docs }}</strong><small>{{ completed_docs }} ready to use</small></div>
+        </article>
+        <article class="metric-card metric-ready">
+            <div class="metric-icon"><i class="bi bi-patch-check"></i></div>
+            <div><span>Translations ready</span><strong>{{ translation_ready }}</strong><small>Passed the publication check</small></div>
+        </article>
+        <article class="metric-card metric-quality">
+            <div class="metric-icon"><i class="bi bi-stars"></i></div>
+            <div><span>Average quality</span><strong>{% if average_quality is not none %}{{ '%.1f' | format(average_quality) }}<b>/100</b>{% else %}&mdash;{% endif %}</strong><small>Only completed translations count</small></div>
+        </article>
+        <article class="metric-card metric-active">
+            <div class="metric-icon"><i class="bi bi-activity"></i></div>
+            <div><span>Work in progress</span><strong>{{ translation_active }}</strong><small>{{ recovered_items }} item{{ '' if recovered_items == 1 else 's' }} recovered safely</small></div>
+        </article>
+    </section>
+
+    <section class="quality-grid">
+        <article class="quality-panel engine-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">Local AI health</p>
+                    <h2>Your translation team</h2>
+                </div>
+                <span class="plain-status" id="engine-overall">Checking readiness</span>
+            </div>
+            <p class="panel-intro">Two local AI tools work together: one drafts quickly, the other checks meaning and polish. Your files stay on this computer.</p>
+            <div class="engine-control" id="engine-control" aria-live="polite">
+                <div class="engine-control-copy">
+                    <span class="engine-control-label">Private translation power</span>
+                    <strong id="engine-control-title">Checking your local AI team</strong>
+                    <p id="engine-control-message">Nothing starts until you choose to enable it.</p>
+                </div>
+                <button
+                    class="engine-power-button"
+                    id="local-ai-toggle"
+                    type="button"
+                    aria-pressed="false"
+                >
+                    <span class="power-rings" aria-hidden="true"><i class="bi bi-power"></i></span>
+                    <span class="power-copy"><strong>Enable local AI</strong><small>Run privately from Drive D</small></span>
+                </button>
+            </div>
+            <div
+                class="engine-cards"
+                id="engine-cards"
+                data-engine-url="{{ url_for('api.get_local_translation_engine_status') }}"
+                data-start-url="{{ url_for('api.start_local_translation_engines') }}"
+                data-stop-url="{{ url_for('api.stop_local_translation_engines') }}"
+            >
+                <article class="engine-card" data-engine="fast">
+                    <button class="engine-card-summary" type="button" aria-expanded="false">
+                        <span class="engine-card-main">
+                            <span class="engine-card-top"><span class="engine-orb engine-orb-fast"></span><span class="engine-state">Checking</span></span>
+                            <span class="engine-name">Fast translator</span>
+                            <span class="engine-description">Creates the first clear translation draft quickly.</span>
+                        </span>
+                        <i class="bi bi-chevron-down engine-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="engine-card-details" hidden>
+                        <div class="engine-detail engine-detail-live"><span>Live now</span><strong data-engine-live>Waiting for work</strong></div>
+                        <div class="engine-detail"><span>Current work</span><strong data-engine-action>Standing by</strong></div>
+                        <div class="engine-detail"><span>Model</span><strong data-engine-model>Preparing...</strong></div>
+                        <div class="engine-detail"><span>Session total</span><strong data-engine-total>No passages yet</strong></div>
+                    </div>
+                </article>
+                <article class="engine-card" data-engine="aya">
+                    <button class="engine-card-summary" type="button" aria-expanded="false">
+                        <span class="engine-card-main">
+                            <span class="engine-card-top"><span class="engine-orb engine-orb-review"></span><span class="engine-state">Checking</span></span>
+                            <span class="engine-name">Quality reviewer</span>
+                            <span class="engine-description">Reviews important wording, titles, and passages that need another look.</span>
+                        </span>
+                        <i class="bi bi-chevron-down engine-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="engine-card-details" hidden>
+                        <div class="engine-detail engine-detail-live"><span>Live now</span><strong data-engine-live>Waiting for work</strong></div>
+                        <div class="engine-detail"><span>Current work</span><strong data-engine-action>Standing by</strong></div>
+                        <div class="engine-detail"><span>Model</span><strong data-engine-model>Preparing...</strong></div>
+                        <div class="engine-detail"><span>Session total</span><strong data-engine-total>No reviews yet</strong></div>
+                    </div>
+                </article>
+            </div>
+        </article>
+
+        <article class="quality-panel promise-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">Before delivery</p>
+                    <h2>What gets checked</h2>
+                </div>
+            </div>
+            <ol class="check-list">
+                <li><span class="check-number">01</span><div><strong>Important details stay intact</strong><p>Dates, figures, codes, names, and locked terms are protected.</p></div></li>
+                <li><span class="check-number">02</span><div><strong>Meaning gets a second look</strong><p>Important titles and risky passages are reviewed before delivery.</p></div></li>
+                <li><span class="check-number">03</span><div><strong>Problems are repaired, not hidden</strong><p>If a review fails, the system retries the affected text and checks it again.</p></div></li>
+                <li><span class="check-number">04</span><div><strong>Layout is kept readable</strong><p>Text is fitted safely so a longer translation does not stop the entire job.</p></div></li>
+            </ol>
+        </article>
+    </section>
+
+    <section
+        class="quality-panel operations-panel"
+        id="operations-panel"
+        data-operations-url="{{ url_for('api.get_translation_operations_status') }}"
+        aria-labelledby="operations-title"
+    >
+        <div class="panel-heading">
+            <div>
+                <p class="panel-kicker">Live operations</p>
+                <h2 id="operations-title">What the translation team is doing</h2>
+            </div>
+            <span class="plain-status" id="operations-overall">Checking activity</span>
+        </div>
+        <div class="operations-live-note" aria-live="polite">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="operations-sync">Live status will appear here</span>
+        </div>
+        <div class="pipeline-rail" aria-label="Translation workflow">
+            <span data-pipeline-stage="planning"><i class="bi bi-compass"></i><b>Plan</b></span>
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            <span data-pipeline-stage="translation"><i class="bi bi-translate"></i><b>Translate</b></span>
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            <span data-pipeline-stage="quality"><i class="bi bi-patch-check"></i><b>Review</b></span>
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            <span data-pipeline-stage="rendering"><i class="bi bi-file-earmark-pdf"></i><b>Build PDF</b></span>
+        </div>
+        <div class="operations-list" id="operations-list" aria-live="polite">
+            <div class="operation-empty"><span class="operation-empty-orb"></span><div><strong>Looking for active work</strong><p>The board will update automatically.</p></div></div>
+        </div>
+    </section>
+
+    <section class="quality-grid quality-grid-lower">
+        <article class="quality-panel activity-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">Recent activity</p>
+                    <h2>What has happened</h2>
+                </div>
+                <a href="{{ url_for('main.translate_page') }}" class="text-link">Open translations <i class="bi bi-arrow-up-right"></i></a>
+            </div>
+            <div class="activity-list">
+                {% if recent_jobs %}
+                    {% for job in recent_jobs %}
+                    <article class="activity-row">
+                        <div class="activity-mark activity-{{ job.status | lower }}"><i class="bi {% if job.status == 'Completed' %}bi-check-lg{% elif job.status == 'Failed' %}bi-exclamation-lg{% elif job.status == 'NeedsReview' %}bi-person-check{% elif job.status == 'Processing' %}bi-arrow-repeat{% else %}bi-clock{% endif %}"></i></div>
+                        <div class="activity-copy">
+                            <strong>{{ job.document_name }}</strong>
+                            <p>{{ job.message }}</p>
+                        </div>
+                        <div class="activity-outcome">
+                            <span class="activity-status">{{ job.status }}</span>
+                            {% if job.quality_score is not none %}<small>{{ '%.1f' | format(job.quality_score) }}/100</small>{% elif job.total_pages %}<small>{{ job.current_page }}/{{ job.total_pages }} pages</small>{% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="friendly-empty"><i class="bi bi-compass"></i><p>Your quality story will appear here after the first translation.</p></div>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="quality-panel next-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">Workspace guide</p>
+                    <h2>Choose your next step</h2>
+                </div>
+            </div>
+            <a href="{{ url_for('main.analyze_page') }}" class="guide-action">
+                <span class="guide-icon guide-icon-blue"><i class="bi bi-file-earmark-plus"></i></span>
+                <span><strong>Analyze a document</strong><small>Extract information, classify it, and ask questions.</small></span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+            <a href="{{ url_for('main.translate_page') }}" class="guide-action">
+                <span class="guide-icon guide-icon-mint"><i class="bi bi-language"></i></span>
+                <span><strong>Translate with local AI</strong><small>Keep your document private while preserving its structure.</small></span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+            <a href="{{ url_for('main.compare_page') }}" class="guide-action">
+                <span class="guide-icon guide-icon-peach"><i class="bi bi-intersect"></i></span>
+                <span><strong>Compare two documents</strong><small>Find meaningful changes without reading line by line.</small></span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
+        </article>
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/quality-dashboard.js') }}"></script>
+{% endblock %}

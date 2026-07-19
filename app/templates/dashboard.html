@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}DocIntel — Document Intelligence Platform{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+
+    <!-- ── LEFT SIDEBAR ────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="sidebar-section-label">Platform</div>
+            <a href="{{ url_for('main.index') }}" class="sidebar-link">
+                <i class="bi bi-grid-1x2-fill"></i> Quality Dashboard
+            </a>
+            <a href="{{ url_for('main.analyze_page') }}" class="sidebar-link active">
+                <i class="bi bi-search-heart-fill"></i> Analyze
+            </a>
+            <a href="{{ url_for('main.compare_page') }}" class="sidebar-link">
+                <i class="bi bi-file-earmark-diff-fill"></i> Compare Docs
+            </a>
+            <a href="{{ url_for('main.translate_page') }}" class="sidebar-link">
+                <i class="bi bi-translate"></i> Translate Docs
+            </a>
+        </div>
+
+        <!-- Stats widget inside sidebar -->
+        <div class="sidebar-stats">
+            <div class="sidebar-stat">
+                <span class="ss-val" id="stat-total">{{ total_docs }}</span>
+                <span class="ss-label">Total</span>
+            </div>
+            <div class="sidebar-stat">
+                <span class="ss-val success" id="stat-done">{{ completed_docs }}</span>
+                <span class="ss-label">Done</span>
+            </div>
+            <div class="sidebar-stat">
+                <span class="ss-val warning" id="stat-proc">{{ processing_docs }}</span>
+                <span class="ss-label">Active</span>
+            </div>
+            <div class="sidebar-stat">
+                <span class="ss-val danger" id="stat-fail">{{ failed_docs }}</span>
+                <span class="ss-label">Failed</span>
+            </div>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-section-label">Storage</div>
+            <div class="storage-meter">
+                <div class="storage-bar">
+                    <div class="storage-fill" style="width: {{ [storage_mb / 50 * 100, 100] | min }}%"></div>
+                </div>
+                <span class="storage-label">{{ storage_mb }} MB used</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────── -->
+    <div class="main-content">
+
+        <!-- Page header -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>Analyze <span class="gradient-text">documents</span></h1>
+                <p>Upload a document and let AI extract, classify, and organize what matters.</p>
+            </div>
+            <div class="page-header-right">
+                <div class="header-badge">
+                    <span class="pulse-dot"></span>
+                    <span>AI Engine Online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload zone + document list stacked -->
+        <div class="workspace">
+
+            <!-- ── UPLOAD CARD ── -->
+            <div class="upload-card" id="upload-card">
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-zone-icon">
+                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                    </div>
+                    <div class="upload-zone-text">
+                        <strong>Drop your document here</strong>
+                        <span>or <button class="inline-btn" id="browse-btn">browse files</button></span>
+                        <span class="upload-hint">PDF · PNG · JPG · JPEG &mdash; max 500 MB</span>
+                    </div>
+                    <input type="file" id="file-input" class="file-input-hidden" accept=".pdf,.png,.jpg,.jpeg">
+                </div>
+
+                <!-- Upload progress -->
+                <div class="upload-progress" id="upload-progress" style="display:none;">
+                    <div class="progress-header">
+                        <i class="bi bi-arrow-up-circle-fill text-primary"></i>
+                        <span id="progress-filename">Uploading...</span>
+                        <span id="progress-pct" class="mono">0%</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── DOCUMENTS TABLE ── -->
+            <div class="docs-panel">
+                <div class="docs-panel-header">
+                    <h2><i class="bi bi-files"></i> Analyses</h2>
+                    <span class="doc-count mono" id="doc-count">{{ documents | length }}</span>
+                </div>
+
+                <div class="table-scroll">
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>Document</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="doc-tbody">
+                            {% if documents %}
+                                {% for doc in documents %}
+                                <tr id="row-{{ doc.id }}" class="doc-row {% if doc.status == 'Processing' or doc.status == 'Pending' %}is-processing{% endif %}">
+                                    <td class="td-name">
+                                        <div class="file-cell">
+                                            {% if doc.file_type == 'pdf' %}
+                                            <span class="file-icon pdf"><i class="bi bi-file-earmark-pdf-fill"></i></span>
+                                            {% else %}
+                                            <span class="file-icon img"><i class="bi bi-file-earmark-image-fill"></i></span>
+                                            {% endif %}
+                                            <span class="file-name" title="{{ doc.original_filename }}">{{ doc.original_filename }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="mono upper small-muted">{{ doc.file_type }}</span></td>
+                                    <td>
+                                        <span class="mono small-muted">
+                                        {% if doc.storage_size > 1048576 %}
+                                            {{ (doc.storage_size / 1048576) | round(1) }} MB
+                                        {% else %}
+                                            {{ (doc.storage_size / 1024) | round(1) }} KB
+                                        {% endif %}
+                                        </span>
+                                    </td>
+                                    <td><span class="small-muted">{{ doc.created_at.strftime('%d %b %Y') }}</span></td>
+                                    <td>
+                                        <span class="cat-badge" id="cat-{{ doc.id }}">
+                                            {{ doc.doc_type if doc.doc_type else '—' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-chip status-{{ doc.status.lower() }}" id="status-{{ doc.id }}">
+                                            {% if doc.status == 'Processing' or doc.status == 'Pending' %}
+                                            <span class="chip-spinner"></span>
+                                            {% elif doc.status == 'Completed' %}
+                                            <i class="bi bi-check-circle-fill"></i>
+                                            {% elif doc.status == 'Failed' %}
+                                            <i class="bi bi-x-circle-fill"></i>
+                                            {% endif %}
+                                            {{ doc.status }}
+                                        </span>
+                                    </td>
+                                    <td class="td-actions">
+                                        <div class="action-group">
+                                            {% if doc.status == 'Completed' %}
+                                            <a href="{{ url_for('main.document_view', doc_id=doc.id) }}" class="act-btn act-view" title="View & Chat">
+                                                <i class="bi bi-arrow-right-circle-fill"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="act-btn act-view" disabled title="Processing...">
+                                                <i class="bi bi-hourglass-split"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button class="act-btn act-delete" onclick="confirmDelete({{ doc.id }}, '{{ doc.original_filename }}')" title="Delete">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr id="empty-row">
+                                    <td colspan="7" class="empty-state">
+                                        <div class="empty-inner">
+                                            <i class="bi bi-cloud-upload"></i>
+                                            <p>No documents yet. Upload one above to get started.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /workspace -->
+    </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="delete-modal" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-icon danger"><i class="bi bi-trash3-fill"></i></div>
+        <h3>Delete Document?</h3>
+        <p id="delete-modal-name" class="mono small-muted"></p>
+        <p class="modal-warn">This will permanently delete the file, extracted data, and chat history.</p>
+        <div class="modal-actions">
+            <button class="btn-outline" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn-danger" id="confirm-delete-btn">Delete permanently</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

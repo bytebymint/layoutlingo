@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}DocIntel - Understand Your Documents With AI{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <!-- Decorative background blobs -->
+    <div class="blob-decor blob-1"></div>
+    <div class="blob-decor blob-2"></div>
+    
+    <div class="container">
+        <div class="hero-grid">
+            <div class="hero-text">
+                <h1>Understand Your <span>Documents</span> With AI</h1>
+                <p>Upload any PDF, PNG, or JPG and let artificial intelligence extract structured metadata, run OCR, classify document types, and answer your questions instantly through context-aware RAG chat.</p>
+                <div class="hero-cta">
+                    <a href="{{ url_for('auth.register') }}" class="btn-premium btn-premium-primary py-3 px-4 fs-5">
+                        <i class="bi bi-cloud-arrow-up-fill"></i> Upload Document
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn-premium btn-premium-secondary py-3 px-4 fs-5">
+                        Explore Demo <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="hero-graphic">
+                <!-- Floating Document Graphic -->
+                <div class="floating-doc glass-panel glow-primary">
+                    <div class="d-flex align-items-center justify-content-between border-bottom border-card pb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-file-earmark-pdf-fill text-danger fs-4"></i>
+                            <span class="fw-semibold small">invoice_2026.pdf</span>
+                        </div>
+                        <span class="badge-status status-completed">OCR SUCCESS</span>
+                    </div>
+                    <div class="floating-doc-line highlight"></div>
+                    <div class="floating-doc-line med"></div>
+                    <div class="floating-doc-line short"></div>
+                    <div class="floating-doc-line med"></div>
+                    
+                    <div class="glass-panel p-2 mt-2 bg-secondary" style="border-radius: 0.5rem; font-size: 0.8rem;">
+                        <span class="text-secondary d-block" style="font-size: 0.65rem; text-transform: uppercase;">AI Extraction</span>
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="text-muted">Type:</span>
+                            <span class="text-primary fw-semibold">Invoice</span>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="text-muted">Total:</span>
+                            <span class="text-success fw-semibold">$10,500.25</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Showcase -->
+<section class="py-4 border-top border-bottom border-card" style="background: rgba(255, 255, 255, 0.01);">
+    <div class="container">
+        <div class="row text-center gy-4">
+            <div class="col-md-4">
+                <h3 class="fs-1 fw-bold text-primary font-monospace">100k+</h3>
+                <p class="text-secondary m-0">Documents Processed</p>
+            </div>
+            <div class="col-md-4 border-start border-card">
+                <h3 class="fs-1 fw-bold text-primary font-monospace">99.8%</h3>
+                <p class="text-secondary m-0">Extraction Accuracy</p>
+            </div>
+            <div class="col-md-4 border-start border-card">
+                <h3 class="fs-1 fw-bold text-primary font-monospace">&lt; 2.5s</h3>
+                <p class="text-secondary m-0">Average Processing Time</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Grid -->
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title">End-to-End Document Intelligence</h2>
+        <div class="features-grid">
+            <!-- Feature 1 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                <h3>Drag-and-Drop Ingestion</h3>
+                <p>Upload PDFs, PNGs, and JPGs up to 500MB. Process individual pages or full multi-page files instantly with live upload tracking.</p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-eye"></i></div>
+                <h3>Intelligent OCR</h3>
+                <p>Extracts print text from digital files instantly using PyPDF, and runs AI-powered multimodal OCR on image scans with high fidelity.</p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-tag"></i></div>
+                <h3>Smart Classification</h3>
+                <p>Detects document types automatically (Invoices, Contracts, Certificates, IDs, or others) based on content signature patterns.</p>
+            </div>
+            <!-- Feature 4 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-braces"></i></div>
+                <h3>Structured JSON</h3>
+                <p>Extracts crucial keys like companies, dates, values, and addresses into queryable key-value cards formatted in clean JSON structures.</p>
+            </div>
+            <!-- Feature 5 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-chat-left-dots"></i></div>
+                <h3>RAG-Based Document Chat</h3>
+                <p>Ask questions directly to your documents. Our system segments text, indexes vector embeddings, and answers queries using ONLY the uploaded file context.</p>
+            </div>
+            <!-- Feature 6 -->
+            <div class="feature-card glass-panel glow-primary">
+                <div class="feature-icon"><i class="bi bi-lock"></i></div>
+                <h3>Secure by Design</h3>
+                <p>Files are stored with cryptographically secure filenames. Fully private SQLite backend that transitions to postgres database servers.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

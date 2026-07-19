@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account - DocIntel{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper">
+    <div class="blob-decor blob-1" style="width: 300px; height: 300px; top: 10%;"></div>
+    <div class="blob-decor blob-2" style="width: 300px; height: 300px; bottom: 10%;"></div>
+    
+    <div class="auth-card glass-panel glow-primary">
+        <div class="auth-header">
+            <h2>Get Started</h2>
+            <p>Create a free account to begin analyzing documents</p>
+        </div>
+        
+        <form action="{{ url_for('auth.register') }}" method="POST">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-input" placeholder="e.g. john_doe" required minlength="3" maxlength="30">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="Min. 6 characters" required minlength="6">
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-input" placeholder="Re-enter password" required>
+            </div>
+            
+            <button type="submit" class="btn-premium btn-premium-primary" style="width: 100%; margin-top: .6rem;">
+                <i class="bi bi-person-plus-fill"></i> Create Account
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            Already have an account? <a href="{{ url_for('auth.login') }}">Sign In</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

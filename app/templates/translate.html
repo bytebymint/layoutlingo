@@ -1,0 +1,444 @@
+{% extends 'base.html' %}
+{% block title %}Translate Docs - DocIntel{% endblock %}
+
+{% block extra_css %}
+<style>
+.translate-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.92fr);
+    gap: 1.5rem;
+}
+.translate-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+.translate-field label { display: block; margin-bottom: 0.45rem; font-weight: 600; color: var(--text); }
+.translate-field select, .translate-field textarea { width: 100%; padding: 0.9rem 1rem; border-radius: 0.9rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.translate-field select:focus, .translate-field textarea:focus { outline: none; border-color: var(--pri); box-shadow: 0 0 0 2px rgba(124,109,250,0.15); }
+.translate-field textarea { min-height: 112px; resize: vertical; line-height: 1.5; }
+.translate-field-wide { grid-column: 1 / -1; }
+.local-engine-status { margin-top: 0.45rem; font-size: 0.82rem; line-height: 1.4; }
+.local-engine-status.ready { color: #34d399; }
+.local-engine-status.unavailable { color: #f87171; }
+.local-engine-status.checking { color: #f59e0b; }
+.translation-check { display: flex; gap: 0.7rem; align-items: flex-start; margin-top: 0.85rem; color: var(--text); }
+.translation-check input { margin-top: 0.25rem; accent-color: var(--pri); }
+.quality-dossier { margin-top: 1rem; padding: 0.9rem; border-radius: 0.85rem; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.16); }
+.quality-dossier.hidden { display: none; }
+.quality-stages { margin-top: 0.55rem; line-height: 1.5; }
+.quality-issues { margin: 0.7rem 0 0; padding-left: 1.15rem; }
+.quality-issues li { margin-bottom: 0.4rem; }
+.translate-note {
+    margin-top: 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 0.9rem;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.16);
+    line-height: 1.5;
+}
+.translate-result {
+    margin-top: 1rem;
+    padding: 1.15rem;
+    border-radius: 1.15rem;
+    background:
+        radial-gradient(circle at 92% 10%, rgba(34, 211, 238, 0.12), transparent 35%),
+        linear-gradient(145deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 42, 0.48));
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 18px 45px rgba(2, 6, 23, 0.18);
+}
+.translate-result.hidden { display: none; }
+.translate-result .status-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+.translate-result .status-pill {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.translate-result .status-pill.pending { background: rgba(245, 158, 11, 0.16); color: #f59e0b; }
+.translate-result .status-pill.processing { background: rgba(59, 130, 246, 0.16); color: #60a5fa; }
+.translate-result .status-pill.completed { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+.translate-result .status-pill.failed { background: rgba(239, 68, 68, 0.16); color: #f87171; }
+.translate-result .status-pill.needsreview { background: rgba(245, 158, 11, 0.18); color: #fbbf24; }
+.translate-result .status-pill.cancelled { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; }
+.status-chip.status-needsreview { background: rgba(245, 158, 11, 0.14); color: #f59e0b; }
+.progress-container {
+    margin: 1.2rem 0 0.8rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: rgba(2, 6, 23, 0.22);
+    border: 1px solid rgba(103, 232, 249, 0.12);
+}
+.progress-head, .progress-detail-row, .progress-stage-line {
+    display: flex;
+    align-items: center;
+}
+.progress-head { justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.progress-stage-line { gap: 0.55rem; min-width: 0; }
+.progress-stage-name { color: var(--text); font-weight: 700; line-height: 1.25; }
+.progress-elapsed { color: #94a3b8; font-size: 0.78rem; white-space: nowrap; }
+.progress-percent {
+    color: #67e8f9;
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+.progress-activity-dot {
+    width: 0.58rem;
+    height: 0.58rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #2dd4bf;
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.48);
+    animation: translation-pulse 1.8s ease-out infinite;
+}
+.progress-bar-bg {
+    width: 100%;
+    height: 12px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.13);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: inset 0 1px 4px rgba(2, 6, 23, 0.42);
+}
+.progress-bar-fill {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #14b8a6 0%, #22d3ee 58%, #60a5fa 100%);
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.4);
+    transform: scaleX(0);
+    transform-origin: left center;
+    will-change: transform;
+}
+.progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.52), transparent);
+    transform: translateX(-130%);
+    animation: translation-shimmer 2.1s ease-in-out infinite;
+}
+.progress-detail-row {
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-top: 0.7rem;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+.progress-detail { color: #a8b3c7; min-width: 0; }
+.progress-live { color: #5eead4; white-space: nowrap; }
+.progress-container.is-complete .progress-activity-dot {
+    background: #34d399;
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.13);
+}
+.progress-container.is-complete .progress-bar-fill {
+    background: linear-gradient(90deg, #0d9488, #34d399);
+}
+.progress-container.is-stopped .progress-activity-dot {
+    background: #f87171;
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+}
+.progress-container.is-stopped .progress-live { color: #fca5a5; }
+.progress-container.is-review { border-color: rgba(251, 191, 36, 0.28); background: rgba(69, 43, 8, 0.2); }
+.progress-container.is-review .progress-activity-dot { background: #fbbf24; animation: none; box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.13); }
+.progress-container.is-review .progress-live { color: #fcd34d; }
+.review-desk { margin-top: 1rem; padding: 1rem; border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 1rem; background: linear-gradient(145deg, rgba(120, 76, 10, 0.18), rgba(15, 23, 42, 0.22)); animation: review-desk-in 0.28s cubic-bezier(.22, 1, .36, 1) both; }
+.review-desk.hidden { display: none; }
+.review-desk-header { display: flex; gap: 0.85rem; align-items: flex-start; }
+.review-desk-icon { flex: 0 0 2.35rem; height: 2.35rem; display: grid; place-items: center; border-radius: 0.75rem; background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.review-desk-header h3 { margin: 0; color: var(--text); font-size: 1rem; }
+.review-desk-header p { margin: 0.25rem 0 0; color: #a8b3c7; font-size: 0.78rem; line-height: 1.5; }
+.review-items { display: grid; gap: 0.75rem; margin-top: 0.9rem; }
+.review-item { padding: 0.9rem; border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 0.9rem; background: rgba(2, 6, 23, 0.24); animation: review-item-in 0.3s cubic-bezier(.22, 1, .36, 1) both; }
+.review-item-top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; margin-bottom: 0.65rem; }
+.review-item-top strong { color: #fcd34d; font-size: 0.78rem; }
+.review-item-top span { color: #94a3b8; font-size: 0.7rem; }
+.review-reason { margin-bottom: 0.75rem; color: #cbd5e1; font-size: 0.76rem; line-height: 1.45; }
+.review-label { display: block; margin: 0.65rem 0 0.35rem; color: #94a3b8; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.review-source { max-height: 9rem; overflow: auto; margin: 0; padding: 0.7rem; border-radius: 0.7rem; background: rgba(148, 163, 184, 0.08); color: #dbe5f3; font-size: 0.78rem; line-height: 1.55; white-space: pre-wrap; }
+.review-target { width: 100%; min-height: 7rem; resize: vertical; padding: 0.75rem; border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 0.7rem; background: rgba(2, 6, 23, 0.32); color: var(--text); line-height: 1.65; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.review-target:focus { outline: none; border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12); }
+.review-actions { display: flex; justify-content: flex-end; margin-top: 0.9rem; }
+.review-continue { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0 1rem; border: 0; border-radius: 999px; background: linear-gradient(100deg, #d99a21, #f0bc49); color: #1f2937; font-weight: 800; cursor: pointer; box-shadow: 0 10px 24px rgba(217, 154, 33, 0.18); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.review-continue:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(217, 154, 33, 0.26); }
+.review-continue:disabled { cursor: wait; opacity: 0.65; transform: none; }
+@keyframes translation-pulse {
+    70% { box-shadow: 0 0 0 7px rgba(45, 212, 191, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+}
+@keyframes translation-shimmer {
+    55%, 100% { transform: translateX(320%); }
+}
+@keyframes review-desk-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes review-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.translate-link[aria-disabled='true'] { pointer-events: none; opacity: 0.55; }
+.translate-history-table .td-actions { white-space: nowrap; }
+@media (max-width: 1100px) {
+    .translate-grid, .translate-form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+    .progress-detail-row { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+    .progress-head { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .progress-activity-dot, .progress-bar-fill::after, .review-desk, .review-item { animation: none; }
+    .review-continue, .review-target { transition: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="sidebar-section-label">Platform</div>
+            <a href="{{ url_for('main.index') }}" class="sidebar-link">
+                <i class="bi bi-grid-1x2-fill"></i> Quality Dashboard
+            </a>
+            <a href="{{ url_for('main.analyze_page') }}" class="sidebar-link">
+                <i class="bi bi-search-heart-fill"></i> Analyze
+            </a>
+            <a href="{{ url_for('main.compare_page') }}" class="sidebar-link">
+                <i class="bi bi-file-earmark-diff-fill"></i> Compare Docs
+            </a>
+            <a href="{{ url_for('main.translate_page') }}" class="sidebar-link active">
+                <i class="bi bi-translate"></i> Translate Docs
+            </a>
+        </div>
+        <div class="sidebar-stats">
+            <div class="sidebar-stat"><span class="ss-val" id="stat-total">{{ total_docs }}</span><span class="ss-label">Total</span></div>
+            <div class="sidebar-stat"><span class="ss-val success" id="stat-done">{{ completed_docs }}</span><span class="ss-label">Done</span></div>
+            <div class="sidebar-stat"><span class="ss-val warning" id="stat-proc">{{ processing_docs }}</span><span class="ss-label">Active</span></div>
+            <div class="sidebar-stat"><span class="ss-val danger" id="stat-fail">{{ failed_docs }}</span><span class="ss-label">Failed</span></div>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sidebar-section-label">Storage</div>
+            <div class="storage-meter">
+                <div class="storage-bar"><div class="storage-fill" style="width: {{ [storage_mb / 50 * 100, 100] | min }}%"></div></div>
+                <span class="storage-label">{{ storage_mb }} MB used</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="page-header">
+            <div class="page-header-left">
+                <h1>Document <span class="gradient-text">Translation</span></h1>
+                <p>Choose a source language and a target language, then generate a translated PDF with RTL-aware layout support.</p>
+            </div>
+            <div class="page-header-right"><div class="header-badge"><span class="pulse-dot"></span><span>Professional Translation Team</span></div></div>
+        </div>
+
+        <div class="workspace translate-grid" id="translate-workspace">
+            <div class="upload-card glass">
+                <div class="docs-panel-header" style="margin-bottom: 1rem;">
+                    <h2><i class="bi bi-translate"></i> Translate PDF</h2>
+                    <span class="doc-count mono">{{ documents | length }}</span>
+                </div>
+
+                <form id="translation-form" data-rtl-codes="{{ rtl_codes }}">
+                    <div class="translate-form-grid">
+                        <div class="translate-field">
+                            <label for="document_id">Document</label>
+                            <select id="document_id" class="form-select" required>
+                                <option value="">Select a completed document</option>
+                                {% for doc in documents if doc.status == 'Completed' %}
+                                <option value="{{ doc.id }}">{{ doc.original_filename }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="translate-field">
+                            <label for="source_language">Input language</label>
+                            <select id="source_language" class="form-select" required>
+                                {% for lang in language_options %}<option value="{{ lang.code }}">{{ lang.label }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="translate-field">
+                            <label for="target_language">Target language</label>
+                            <select id="target_language" class="form-select" required>
+                                {% for lang in language_options %}<option value="{{ lang.code }}">{{ lang.label }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="translate-field">
+                            <label for="translation_provider">Translation engine</label>
+                            <select id="translation_provider" class="form-select" required>
+                                <option value="online">Online provider</option>
+                                <option value="offline_fast">Offline Fast: NLLB first pass</option>
+                                <option value="offline_quality">Offline Quality: NLLB + Aya review</option>
+                                <option value="offline">Offline Aya only (legacy)</option>
+                            </select>
+                            <div id="local-engine-status" class="local-engine-status small-muted">Online sends translation prompts to the configured provider.</div>
+                        </div>
+                        <div class="translate-field">
+                            <label for="translation_mode">Translation profile</label>
+                            <select id="translation_mode" class="form-select" required>
+                                <option value="auto">Auto detect</option>
+                                <option value="literary">Literary ebook</option>
+                                <option value="document">Exact document layout</option>
+                            </select>
+                        </div>
+                        <div class="translate-field">
+                            <label for="translation_domain">Subject domain</label>
+                            <select id="translation_domain" class="form-select" required>
+                                <option value="auto">Auto route</option>
+                                <option value="general">General</option>
+                                <option value="legal">Legal</option>
+                                <option value="financial">Financial</option>
+                                <option value="medical">Medical</option>
+                                <option value="technical">Technical</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="literary">Literary</option>
+                            </select>
+                        </div>
+                        <div class="translate-field">
+                            <label for="quality_level">Quality policy</label>
+                            <select id="quality_level" class="form-select" required>
+                                <option value="professional">Professional team</option>
+                                <option value="draft">Draft translation</option>
+                            </select>
+                        </div>
+                        <div class="translate-field translate-field-wide">
+                            <label for="translation_glossary">Locked glossary (optional)</label>
+                            <textarea id="translation_glossary" placeholder="Source term => Required target term&#10;Company name => Target-language company name"></textarea>
+                            <div class="small-muted" style="margin-top:0.4rem;">One term per line. These entries are saved and enforced on future translations for this language pair and domain.</div>
+                        </div>
+                    </div>
+
+                    <div class="translate-note">
+                        Offline Fast uses the local NLLB translation engine with fact, glossary, language, consistency, and layout gates. Offline Quality adds Aya review only for selected high-risk or literary segments; it does not run a second AI pass over routine text.
+                        <label class="translation-check" for="enable_back_translation">
+                            <input id="enable_back_translation" type="checkbox" checked>
+                            <span>Run back-translation reconciliation for high-risk legal, financial, and medical material.</span>
+                        </label>
+                    </div>
+
+                    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-top: 1rem;">
+                        <button type="submit" class="btn-premium btn-premium-primary py-3 px-4 fs-6" id="translate-btn">
+                            <i class="bi bi-magic"></i> Translate PDF
+                        </button>
+                        <button type="button" class="btn-premium btn-premium-secondary py-3 px-4 fs-6" id="translate-reset-btn">Reset</button>
+                    </div>
+                </form>
+
+                <div id="translation-result" class="translate-result hidden">
+                    <div class="status-row">
+                        <strong id="translation-title">Translation job</strong>
+                        <span id="translation-status-pill" class="status-pill pending">Pending</span>
+                    </div>
+                    <div id="translation-meta" class="small-muted"></div>
+                    
+                    <div id="translation-progress-container" class="progress-container" style="display: none;">
+                        <div class="progress-head">
+                            <div class="progress-stage-line">
+                                <span class="progress-activity-dot" aria-hidden="true"></span>
+                                <span id="translation-progress-stage" class="progress-stage-name">Preparing translation</span>
+                                <span id="translation-progress-elapsed" class="progress-elapsed">00:00</span>
+                            </div>
+                            <span id="translation-progress-percent" class="progress-percent">0%</span>
+                        </div>
+                        <div id="translation-progress-track" class="progress-bar-bg" role="progressbar" aria-label="Translation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div id="translation-progress-fill" class="progress-bar-fill"></div>
+                        </div>
+                        <div class="progress-detail-row">
+                            <span id="translation-progress-label" class="progress-detail">Waiting for the translation worker...</span>
+                            <span id="translation-progress-activity" class="progress-live">Local engine active</span>
+                        </div>
+                    </div>
+
+                    <div id="translation-message" style="margin-top: 0.5rem; font-size: 0.9rem; line-height: 1.5;"></div>
+                    <section id="translation-review-panel" class="review-desk hidden" aria-labelledby="translation-review-title">
+                        <div class="review-desk-header">
+                            <span class="review-desk-icon"><i class="bi bi-person-check-fill"></i></span>
+                            <div>
+                                <h3 id="translation-review-title">Your decision is needed</h3>
+                                <p>Only passages that failed automatic QA appear here. Approve or improve each translation, then the system will resume from its checkpoint.</p>
+                            </div>
+                        </div>
+                        <div id="translation-review-items" class="review-items"></div>
+                        <div class="review-actions">
+                            <button id="translation-review-submit" class="review-continue" type="button">
+                                <i class="bi bi-check2-circle"></i> Approve corrections and continue
+                            </button>
+                        </div>
+                    </section>
+                    <div id="translation-quality-dossier" class="quality-dossier hidden">
+                        <strong>Quality dossier</strong>
+                        <div id="translation-quality-summary" class="small-muted" style="margin-top:0.4rem;"></div>
+                        <div id="translation-quality-stages" class="quality-stages small-muted"></div>
+                        <ul id="translation-quality-issues" class="quality-issues"></ul>
+                    </div>
+                    <a id="translation-download" class="btn-premium btn-premium-primary translate-link" href="#" aria-disabled="true" tabindex="-1" style="margin-top: 1rem; display: inline-flex; align-items: center; justify-content: center; width: 100%;">
+                        <i class="bi bi-download" style="margin-right: 0.5rem;"></i> Download translated PDF
+                    </a>
+                    <button id="translation-cancel" class="btn-premium" type="button" style="margin-top: 0.65rem; width: 100%; display: none;">
+                        <i class="bi bi-x-circle" style="margin-right: 0.5rem;"></i> Cancel translation
+                    </button>
+                </div>
+            </div>
+
+            <div class="docs-panel">
+                <div class="docs-panel-header">
+                    <h2><i class="bi bi-clock-history"></i> Recent translations</h2>
+                    <span class="doc-count mono" id="translation-count">{{ translations | length }}</span>
+                </div>
+                <div class="table-scroll">
+                    <table class="doc-table translate-history-table">
+                        <thead>
+                            <tr>
+                                <th>Document</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="translation-tbody">
+                            {% if translations %}
+                                {% for item in translations %}
+                                <tr id="translation-row-{{ item.id }}">
+                                    <td class="td-name"><div class="file-cell"><span class="file-icon pdf"><i class="bi bi-file-earmark-pdf-fill"></i></span><span class="file-name" title="{{ item.document_name }}">{{ item.document_name }}</span></div></td>
+                                    <td><span class="mono small-muted">{{ item.source_language }}</span></td>
+                                    <td><span class="mono small-muted">{{ item.target_language }}</span></td>
+                                    <td><span class="status-chip status-{{ item.status.lower() }}">{{ item.status }}</span></td>
+                                    <td><span class="small-muted">{{ item.created_at.strftime('%d %b %Y') if item.created_at else '—' }}</span></td>
+                                    <td class="td-actions">
+                                        {% if item.download_available %}
+                                        <a href="{{ url_for('api.download_translation', translation_id=item.id) }}" class="act-btn act-view" title="Download translated PDF"><i class="bi bi-download"></i></a>
+                                        {% elif item.status == 'NeedsReview' %}
+                                        <a href="{{ url_for('main.translate_page', translation_id=item.id) }}" class="act-btn act-view" title="Open quality decision"><i class="bi bi-person-check"></i></a>
+                                        {% else %}
+                                        <button class="act-btn act-view" disabled title="No download yet"><i class="bi bi-hourglass-split"></i></button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-state"><div class="empty-inner"><i class="bi bi-translate"></i><p>No translations yet. Start one from the form on the left.</p></div></td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/translate.js') }}"></script>
+{% endblock %}

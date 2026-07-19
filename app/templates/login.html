@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In - DocIntel{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper">
+    <div class="blob-decor blob-1" style="width: 300px; height: 300px; top: 10%;"></div>
+    <div class="blob-decor blob-2" style="width: 300px; height: 300px; bottom: 10%;"></div>
+    
+    <div class="auth-card glass-panel glow-primary">
+        <div class="auth-header">
+            <h2>Welcome Back</h2>
+            <p>Access your AI document analytics dashboard</p>
+        </div>
+        
+        <form action="{{ url_for('auth.login') }}" method="POST">
+            <div class="form-group">
+                <label for="login_input">Username or Email</label>
+                <input type="text" id="login_input" name="login_input" class="form-input" placeholder="Enter username or email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-checkbox">
+                    <input type="checkbox" name="remember" id="remember">
+                    <span>Remember me on this device</span>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn-premium btn-premium-primary" style="width: 100%; margin-top: .4rem;">
+                <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            Don't have an account? <a href="{{ url_for('auth.register') }}">Create one for free</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DocIntel — AI-powered document analysis. Extract data, classify, and chat with your documents.">
+    <title>{% block title %}DocIntel — AI Document Intelligence{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary-h: 260;
+        --primary-s: 80%;
+        --primary-l: 55%;
+        --secondary-h: 170;
+        --secondary-s: 70%;
+        --secondary-l: 45%;
+        --bg-h: 210;
+        --bg-s: 10%;
+        --bg-l: 12%;
+        --surface: hsla(var(--bg-h), var(--bg-s), var(--bg-l), 0.85);
+        --blur: 12px;
+        --border: hsla(0,0%,100%,0.1);
+        --radius: 12px;
+        --gradient-pri-acc: linear-gradient(135deg, hsl(var(--primary-h), var(--primary-s), var(--primary-l)), hsl(var(--secondary-h), var(--secondary-s), var(--secondary-l)));
+      }
+      [data-theme="light"] {
+        --bg-l: 95%;
+        --surface: hsla(var(--bg-h), var(--bg-s), var(--bg-l), 0.85);
+        color-scheme: light;
+      }
+    </style>
+    <script>
+      // Theme toggle script
+      const toggle = document.getElementById('theme-toggle');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          const html = document.documentElement;
+          const isDark = html.getAttribute('data-theme') === 'dark';
+          html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+          const icon = document.getElementById('theme-icon');
+          if (icon) icon.className = isDark ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
+        });
+      }
+    </script>
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Ambient background orbs -->
+<div class="orb orb-1" aria-hidden="true"></div>
+<div class="orb orb-2" aria-hidden="true"></div>
+<div class="orb orb-3" aria-hidden="true"></div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-stack" aria-live="polite">
+        {% for category, message in messages %}
+        <div class="flash-alert flash-{{ category or 'info' }}">
+            <i class="bi {% if category == 'success' %}bi-check-circle-fill{% elif category == 'danger' or category == 'error' %}bi-exclamation-triangle-fill{% elif category == 'warning' %}bi-exclamation-circle-fill{% else %}bi-info-circle-fill{% endif %}"></i>
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endwith %}
+
+<!-- Nav -->
+<header class="site-nav">
+    <div class="nav-inner">
+        <a href="{{ url_for('main.index') }}" class="nav-brand">
+            <div class="brand-icon">
+                <i class="bi bi-hexagon-fill"></i>
+                <i class="bi bi-cpu-fill brand-icon-inner"></i>
+            </div>
+            <span>Doc<strong>Intel</strong></span>
+        </a>
+        <div class="nav-right">
+            <span class="nav-pill">Local Mode</span>
+            <button id="theme-toggle" class="theme-btn" title="Toggle theme" aria-label="Toggle theme">
+                <i class="bi bi-sun-fill" id="theme-icon"></i>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Main content -->
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+    <div class="footer-inner">
+        <span class="footer-brand"><i class="bi bi-hexagon-fill"></i> DocIntel</span>
+        <span class="footer-copy">Powered by Powerful AI &amp; Flask &mdash; Running locally &copy; {{ now.year }}</span>
+    </div>
+</footer>
+
+<!-- Main JS -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
