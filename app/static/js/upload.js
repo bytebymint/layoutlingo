@@ -78,6 +78,8 @@ function uploadFile(file) {
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/upload', true);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
 
     xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
@@ -95,7 +97,14 @@ function uploadFile(file) {
             addDocRow(data.document);
         } else {
             let msg = 'Upload failed.';
-            try { msg = JSON.parse(xhr.responseText).error || msg; } catch (_) {}
+            try {
+                const data = JSON.parse(xhr.responseText);
+                msg = data.error || data.message || msg;
+            } catch (_) {
+                if (xhr.status === 400) {
+                    msg = 'The upload request was rejected. Refresh the page and try again.';
+                }
+            }
             showToast(msg, 'error');
             if (progressEl) progressEl.style.display = 'none';
         }

@@ -56,6 +56,52 @@ Open [http://127.0.0.1:5000](http://127.0.0.1:5000), create an account, and uplo
 
 The application itself runs on Linux and macOS. The bundled one-click local-AI installer currently targets Windows because it downloads and launches the Windows `llama.cpp` server executable. On Linux and macOS, use online mode with a configured provider, or install a compatible local `llama.cpp` runtime and models manually, then point `LOCAL_LLM_ROOT` and `FAST_TRANSLATION_MODEL_PATH` in `.env` at those locations. Verify the runtime command and model format for your operating system before selecting offline mode.
 
+## Screenshots
+
+The screenshots below show the complete translation workflow, from choosing a document and local models to reviewing quality findings and exporting the finished PDF.
+
+### 1. Configure the translation
+
+Choose the source and target languages, the document profile, the subject domain, and the translation engine. In this example, the fast NLLB model drafts the translation and the local Aya model reviews it for literary quality.
+
+![Translation settings](docs/screenshots/translation-settings.png)
+
+### 2. Watch the local translation team work
+
+The progress view reports the current stage, page, batch, elapsed time, and whether the translation worker is active. This makes long-document processing understandable instead of showing an unexplained percentage.
+
+![Translation progress](docs/screenshots/translation-progress.png)
+
+### 3. Review only what needs attention
+
+If automated checks identify passages that require human judgment, the job pauses at a checkpoint. The rest of the document remains safely preserved while the reviewer sees exactly how many decisions are needed.
+
+![Quality review needed](docs/screenshots/quality-review-needed.png)
+
+The review cards show the original passage beside the proposed local-AI translation. A reviewer can correct the specific passage instead of reworking the entire document.
+
+![Failed passage review](docs/screenshots/failed-passage-review.png)
+
+If a final recovery attempt needs a decision, LayoutLingo presents it as a separate, focused review item with an explicit approval action.
+
+![Final recovery review](docs/screenshots/final-recovery-review.png)
+
+### 4. Export with a quality report
+
+After the review workflow is complete, the job reaches 100%, reports the quality score, shows the quality dossier, and enables the translated PDF download.
+
+![Translation completed](docs/screenshots/translation-completed.png)
+
+### Before and after: local-AI PDF translation
+
+This comparison shows the same story page before and after translation. The English source keeps its original literary layout, while the Arabic output is rendered with right-to-left text and preserved page geometry. The translation is produced locally by the configured NLLB plus Aya workflow; the models are installed and run on the user’s computer rather than sent to a third-party translation service.
+
+| Original English page | Local-AI Arabic result |
+| --- | --- |
+| ![Original English PDF page](docs/screenshots/original-english-output.png) | ![Translated Arabic PDF page](docs/screenshots/translated-arabic-output.png) |
+
+The before/after pair is illustrative: automated QA reduces common errors, but publication-critical translations should still receive qualified human review.
+
 ## Local AI setup
 
 The first time you choose offline translation, the Quality Dashboard opens a guided setup screen. It checks available storage, lets you choose a local folder, shows the download estimate, asks you to accept the model terms, and installs the llama.cpp runtime, Aya reviewer, NLLB fast translator, caches, logs, and temporary files.
