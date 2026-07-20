@@ -10,10 +10,7 @@ from app.services.fast_translation_api import fast_translation_activity, fast_tr
 from app.services.local_llm_api import local_llm_activity, local_llm_status
 
 
-_ROOT = r'D:\DocIntel-LocalAI'
-_START_SCRIPT = os.path.join(_ROOT, 'start-local-ai.ps1')
-_STOP_SCRIPT = os.path.join(_ROOT, 'stop-local-ai.ps1')
-_PID_FILE = os.path.join(_ROOT, 'config', 'llama-server.pid')
+_DEFAULT_ROOT = r'D:\DocIntel-LocalAI'
 _manager_lock = threading.RLock()
 _launcher_process = None
 _last_action = None
@@ -26,9 +23,25 @@ def _iso_now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def _root() -> str:
+    return os.path.abspath(os.environ.get('LOCAL_LLM_ROOT', _DEFAULT_ROOT))
+
+
+def _start_script() -> str:
+    return os.path.join(_root(), 'start-local-ai.ps1')
+
+
+def _stop_script() -> str:
+    return os.path.join(_root(), 'stop-local-ai.ps1')
+
+
+def _pid_file() -> str:
+    return os.path.join(_root(), 'config', 'llama-server.pid')
+
+
 def _read_pid():
     try:
-        with open(_PID_FILE, 'r', encoding='ascii') as pid_file:
+        with open(_pid_file(), 'r', encoding='ascii') as pid_file:
             return int(pid_file.read().strip())
     except (OSError, TypeError, ValueError):
         return None
@@ -97,8 +110,9 @@ def start_local_engines() -> dict:
     if current.get('available'):
         return local_engine_control_status()
 
-    if not os.path.isfile(_START_SCRIPT):
-        raise RuntimeError('The D-drive local AI start file is missing.')
+    start_script = _start_script()
+    if not os.path.isfile(start_script):
+        raise RuntimeError('Local AI is not installed yet. Use Set up local AI on the Quality Dashboard.')
 
     with _manager_lock:
         if _launcher_process is not None and _launcher_process.poll() is None:
@@ -112,9 +126,9 @@ def start_local_engines() -> dict:
                 '-ExecutionPolicy',
                 'Bypass',
                 '-File',
-                _START_SCRIPT,
+                start_script,
             ],
-            cwd=_ROOT,
+            cwd=_root(),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -130,7 +144,8 @@ def start_local_engines() -> dict:
 def stop_local_engines() -> dict:
     """Stop only the verified D-drive llama.cpp process."""
     global _launcher_process, _last_action, _last_action_at, _last_error
-    if not os.path.isfile(_STOP_SCRIPT):
+    stop_script = _stop_script()
+    if not os.path.isfile(stop_script):
         raise RuntimeError('The D-drive local AI stop file is missing.')
 
     with _manager_lock:
@@ -147,9 +162,9 @@ def stop_local_engines() -> dict:
             '-ExecutionPolicy',
             'Bypass',
             '-File',
-            _STOP_SCRIPT,
+            stop_script,
         ],
-        cwd=_ROOT,
+        cwd=_root(),
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,

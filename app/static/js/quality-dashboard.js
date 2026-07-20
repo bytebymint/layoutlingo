@@ -5,6 +5,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const controlTitle = document.getElementById('engine-control-title');
   const controlMessage = document.getElementById('engine-control-message');
   const toggle = document.getElementById('local-ai-toggle');
+  const setupLayer = document.getElementById('local-setup-layer');
+  const setupRoot = document.getElementById('setup-root');
+  const setupLicense = document.getElementById('setup-license');
+  const setupInstall = document.getElementById('setup-install');
+  const setupError = document.getElementById('setup-error');
+  const setupProgress = document.getElementById('setup-progress');
   const operationsPanel = document.getElementById('operations-panel');
   const operationsList = document.getElementById('operations-list');
   const operationsOverall = document.getElementById('operations-overall');
@@ -14,6 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let engineState = 'checking';
   let refreshTimer = null;
   let refreshBusy = false;
+  let setupTimer = null;
+  let setupInfo = null;
 
   const createElement = (tag, className, textValue) => {
     const element = document.createElement(tag);
@@ -32,6 +40,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const minutes = Math.floor(seconds / 60);
     const remainder = Math.floor(seconds % 60);
     return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+  };
+
+  const formatBytes = (value) => {
+    const gb = Number(value || 0) / (1024 ** 3);
+    return Number.isFinite(gb) && gb > 0 ? `${gb.toFixed(gb >= 10 ? 0 : 1)} GB` : 'unknown space';
+  };
+
+  const renderSetup = (data) => {
+    setupInfo = data;
+    if (!setupLayer) return;
+    if (setupRoot && data.root && document.activeElement !== setupRoot) setupRoot.value = data.root;
+    const disk = data.disk || {};
+    const free = disk.free_bytes;
+    const note = document.getElementById('setup-storage-note');
+    if (note) note.textContent = free == null
+      ? 'We could not read this drive. Choose an existing local drive.'
+      : `${formatBytes(free)} free on this drive. ${free >= Number(data.recommended_free_bytes || 0) ? 'Enough room for setup.' : 'More space is needed.'}`;
+    const busy = data.state === 'installing';
+    const complete = data.state === 'complete';
+    if (setupProgress) setupProgress.hidden = !busy && !complete && data.state !== 'failed';
+    document.getElementById('setup-phase')?.replaceChildren(document.createTextNode(data.phase || 'Setup required'));
+    document.getElementById('setup-percent')?.replaceChildren(document.createTextNode(`${Number(data.progress_percent || 0)}%`));
+    document.getElementById('setup-fill')?.style.setProperty('transform', `scaleX(${Math.max(0, Math.min(1, Number(data.progress_percent || 0) / 100))})`);
+    document.getElementById('setup-message')?.replaceChildren(document.createTextNode(data.message || ''));
+    const log = document.getElementById('setup-log');
+    if (log) log.textContent = (data.log_tail || []).join('\n') || 'Waiting for installer output...';
+    if (setupError) { setupError.hidden = !data.error; setupError.textContent = data.error || ''; }
+    if (setupInstall) {
+      setupInstall.disabled = busy || !setupLicense?.checked || (free != null && free < Number(data.recommended_free_bytes || 0));
+      setupInstall.innerHTML = busy
+        ? '<i class="bi bi-arrow-repeat"></i> Installing locally'
+        : (complete ? '<i class="bi bi-check2-circle"></i> Installation complete' : '<i class="bi bi-download"></i> Download local AI');
+    }
+    if (complete) {
+      window.clearTimeout(setupTimer);
+      window.setTimeout(() => { setupLayer.hidden = true; refresh(); }, 1200);
+    } else if (busy) {
+      window.clearTimeout(setupTimer);
+      setupTimer = window.setTimeout(refreshSetup, 1000);
+    }
+  };
+
+  const refreshSetup = async () => {
+    if (!engineCards.dataset.setupStatusUrl || !setupRoot) return null;
+    const root = encodeURIComponent(setupRoot.value.trim());
+    const response = await fetch(`${engineCards.dataset.setupStatusUrl}?root=${root}`, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Could not check the selected drive.');
+    renderSetup(data);
+    return data;
+  };
+
+  const openSetup = async () => {
+    if (!setupLayer) return;
+    setupLayer.hidden = false;
+    setupError.hidden = true;
+    try { await refreshSetup(); } catch (error) { setupError.hidden = false; setupError.textContent = error.message; }
+  };
+
+  const closeSetup = () => {
+    if (setupInfo?.state === 'installing') return;
+    setupLayer.hidden = true;
   };
 
   const engineLiveLabel = (name, engine) => {
@@ -276,6 +346,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   toggle.addEventListener('click', async () => {
     const turningOff = engineState === 'ready';
+    if (!turningOff) {
+      try {
+        const setup = await refreshSetup();
+        if (!setup?.installed?.aya_ready || !setup?.installed?.fast_ready || !setup?.installed?.launcher_ready) {
+          await openSetup();
+          return;
+        }
+      } catch (error) {
+        controlMessage.textContent = error.message || 'The setup check could not be completed.';
+        return;
+      }
+    }
     toggle.disabled = true;
     if (!turningOff) updateEngineControl({ state: 'starting', aya: { available: false }, fast: { available: true } });
     try {
@@ -292,6 +374,32 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       toggle.disabled = false;
       refresh();
+    }
+  });
+
+  setupLicense?.addEventListener('change', () => renderSetup(setupInfo || {}));
+  setupRoot?.addEventListener('change', () => refreshSetup().catch((error) => {
+    setupError.hidden = false; setupError.textContent = error.message;
+  }));
+  document.getElementById('setup-close')?.addEventListener('click', closeSetup);
+  document.getElementById('setup-cancel')?.addEventListener('click', closeSetup);
+  setupLayer?.addEventListener('click', (event) => { if (event.target === setupLayer) closeSetup(); });
+  setupInstall?.addEventListener('click', async () => {
+    if (!setupLicense?.checked || !setupRoot) return;
+    setupInstall.disabled = true;
+    setupError.hidden = true;
+    try {
+      const response = await fetch(engineCards.dataset.setupUrl, {
+        method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ root: setupRoot.value.trim(), license_accepted: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'The local AI installation could not start.');
+      renderSetup(data);
+    } catch (error) {
+      setupError.hidden = false;
+      setupError.textContent = error.message || 'The local AI installation could not start.';
+      setupInstall.disabled = false;
     }
   });
 

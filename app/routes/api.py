@@ -1138,6 +1138,32 @@ def get_local_translation_engine_status():
     })
 
 
+@api_bp.route('/translation/local-engine/setup/status', methods=['GET'])
+def get_local_translation_setup_status():
+    from app.services.local_setup_manager import setup_status
+
+    try:
+        return jsonify(setup_status(request.args.get('root')))
+    except ValueError as exc:
+        return jsonify({'status': 'error', 'message': str(exc)}), 400
+
+
+@api_bp.route('/translation/local-engine/setup', methods=['POST'])
+def install_local_translation_engines():
+    from app.services.local_setup_manager import start_setup
+
+    data = request.get_json(silent=True) or {}
+    try:
+        status = start_setup(
+            str(data.get('root') or ''),
+            license_accepted=bool(data.get('license_accepted')),
+            python_executable=os.sys.executable,
+        )
+        return jsonify(status), 202
+    except (OSError, RuntimeError, ValueError) as exc:
+        return jsonify({'status': 'error', 'message': str(exc)}), 400
+
+
 @api_bp.route('/translation/local-engine/start', methods=['POST'])
 def start_local_translation_engines():
     from app.services.local_engine_manager import start_local_engines
