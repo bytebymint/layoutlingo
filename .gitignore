@@ -22,5 +22,5 @@ tests/tmp-uploads/
 
 # Local AI models and caches must be installed outside the repository.
 DocIntel-LocalAI/
-models/
-cache/
+/models/
+/cache/
