@@ -154,12 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
       ? 'Waking up local AI'
       : (isOn ? 'Turn off local AI' : 'Enable local AI'));
     setText(toggle, '.power-copy small', isStarting
-      ? 'Loading privately from Drive D'
-      : (isOn ? 'Reviewer is available locally' : 'Run privately from Drive D'));
+      ? 'Loading privately on this computer'
+      : (isOn ? 'Reviewer is available locally' : 'Run privately on this computer'));
 
     if (isStarting) {
       setText(control, '#engine-control-title', 'Your quality reviewer is waking up');
-      setText(control, '#engine-control-message', 'The model is loading from Drive D. This can take a short moment.');
+      setText(control, '#engine-control-message', 'The model is loading locally. This can take a short moment.');
     } else if (isOn) {
       setText(control, '#engine-control-title', 'Your private AI team is available');
       setText(control, '#engine-control-message', 'Fast translation loads when needed; the quality reviewer is ready now.');

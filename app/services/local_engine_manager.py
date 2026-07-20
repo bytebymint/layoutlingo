@@ -10,7 +10,7 @@ from app.services.fast_translation_api import fast_translation_activity, fast_tr
 from app.services.local_llm_api import local_llm_activity, local_llm_status
 
 
-_DEFAULT_ROOT = r'D:\DocIntel-LocalAI'
+_DEFAULT_ROOT = r'C:\LayoutLingo-LocalAI'
 _manager_lock = threading.RLock()
 _launcher_process = None
 _last_action = None
@@ -142,11 +142,11 @@ def start_local_engines() -> dict:
 
 
 def stop_local_engines() -> dict:
-    """Stop only the verified D-drive llama.cpp process."""
+    """Stop only the verified local llama.cpp process."""
     global _launcher_process, _last_action, _last_action_at, _last_error
     stop_script = _stop_script()
     if not os.path.isfile(stop_script):
-        raise RuntimeError('The D-drive local AI stop file is missing.')
+        raise RuntimeError('The local AI stop file is missing.')
 
     with _manager_lock:
         if _launcher_process is not None and _launcher_process.poll() is None:

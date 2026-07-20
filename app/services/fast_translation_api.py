@@ -63,7 +63,7 @@ def _setting(name: str, default):
 def _model_path() -> str:
     configured = os.environ.get('FAST_TRANSLATION_MODEL_PATH') or _setting(
         'FAST_TRANSLATION_MODEL_PATH',
-        r'D:\DocIntel-LocalAI\models\nllb-200-distilled-600m-ct2-int8',
+        r'C:\LayoutLingo-LocalAI\models\nllb-200-distilled-600m-ct2-int8',
     )
     return os.path.abspath(str(configured))
 

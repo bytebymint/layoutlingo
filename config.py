@@ -10,7 +10,7 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # are set before any translation libraries are imported so tempfile,
 # Hugging Face, and Torch all use the portable D: installation by default.
 LOCAL_RUNTIME_ROOT = os.path.abspath(
-    os.environ.get('LOCAL_LLM_ROOT', r'D:\DocIntel-LocalAI')
+    os.environ.get('LOCAL_LLM_ROOT', r'C:\LayoutLingo-LocalAI')
 )
 LOCAL_RUNTIME_TEMP = os.path.abspath(
     os.environ.get('LOCAL_AI_TEMP_DIR', os.path.join(LOCAL_RUNTIME_ROOT, 'tmp'))
@@ -95,7 +95,7 @@ class Config:
         os.environ.get('DOCUMENT_PROCESSING_TIMEOUT_SECONDS', '600')
     )
 
-    # Portable local translation engine. The default installation is entirely on D:.
+    # Portable local translation engine. The default installation is local and configurable.
     LOCAL_LLM_ROOT = LOCAL_RUNTIME_ROOT
     LOCAL_AI_TEMP_DIR = LOCAL_RUNTIME_TEMP
     LOCAL_LLM_ENDPOINT = os.environ.get(
@@ -109,7 +109,7 @@ class Config:
     )
     FAST_TRANSLATION_MODEL_PATH = os.environ.get(
         'FAST_TRANSLATION_MODEL_PATH',
-        r'D:\DocIntel-LocalAI\models\nllb-200-distilled-600m-ct2-int8',
+        r'C:\LayoutLingo-LocalAI\models\nllb-200-distilled-600m-ct2-int8',
     )
     FAST_TRANSLATION_DEVICE = os.environ.get('FAST_TRANSLATION_DEVICE', 'cpu')
     FAST_TRANSLATION_COMPUTE_TYPE = os.environ.get('FAST_TRANSLATION_COMPUTE_TYPE', 'int8')

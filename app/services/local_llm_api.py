@@ -228,7 +228,7 @@ def call_local_chat(system_prompt, user_prompt, temperature=0.2,
         _finish_activity(started_at, 'The local quality reviewer is unavailable.')
         raise LocalLLMError(
             'The local translation engine is unavailable. Start '
-            r'D:\DocIntel-LocalAI\start-local-ai.ps1 and retry.'
+            r'C:\LayoutLingo-LocalAI\start-local-ai.ps1 and retry.'
         ) from exc
 
     response.encoding = 'utf-8'

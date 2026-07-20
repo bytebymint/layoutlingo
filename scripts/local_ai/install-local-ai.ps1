@@ -1,5 +1,5 @@
 param(
-    [string]$Root = 'D:\DocIntel-LocalAI',
+    [string]$Root = 'C:\LayoutLingo-LocalAI',
     [switch]$SkipFastTranslator
 )
 
@@ -105,4 +105,4 @@ if (-not $SkipFastTranslator) {
     if ($LASTEXITCODE -ne 0) { throw 'NLLB fast translator installation failed.' }
 }
 
-Write-Host "Local AI runtime is ready under $Root. All runtime files and model caches are on D:."
+Write-Host "Local AI runtime is ready under $Root. Runtime files and model caches stay in the selected folder."

@@ -1175,7 +1175,7 @@ def start_local_translation_engines():
             'message': (
                 'Your local AI team is ready.'
                 if status.get('enabled')
-                else 'Your local quality reviewer is starting on Drive D.'
+                else 'Your local quality reviewer is starting privately.'
             ),
         }), 200 if status.get('enabled') else 202
     except (OSError, RuntimeError) as exc:

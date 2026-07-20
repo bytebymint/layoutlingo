@@ -659,7 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (providerMode.startsWith('offline') && !(await refreshLocalEngineStatus())) {
-      showToast('Start the local AI engine on D: before using Offline mode.', 'error');
+      showToast('Set up and start the local AI engine before using Offline mode.', 'error');
       return;
     }
 

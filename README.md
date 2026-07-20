@@ -37,28 +37,21 @@ Copy-Item .env.example .env
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000), create an account, and upload a document. The upload limit is 500 MB by default.
 
-## Local AI on D:
+## Local AI setup
 
-The installer keeps the llama.cpp runtime, Aya reviewer, NLLB fast translator, model caches, logs, and temporary files under `D:\DocIntel-LocalAI` by default.
+The first time you choose offline translation, the Quality Dashboard opens a guided setup screen. It checks available storage, lets you choose a local folder, shows the download estimate, asks you to accept the model terms, and installs the llama.cpp runtime, Aya reviewer, NLLB fast translator, caches, logs, and temporary files.
+
+The default location is `C:\LayoutLingo-LocalAI`. You can change it in the setup screen or set `LOCAL_LLM_ROOT` in `.env` before starting the application. The installer also accepts an explicit `-Root` path:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\scripts\local_ai\install-local-ai.ps1
+.\scripts\local_ai\install-local-ai.ps1 -Root "C:\LayoutLingo-LocalAI"
 ```
 
-The NLLB download and conversion can take time and several GB of D: space. To install only Aya first, add `-SkipFastTranslator`.
+Use **Enable local AI** in the Quality Dashboard after installation. `Offline Fast NLLB` needs the NLLB model; `Offline Quality NLLB + Aya` needs both NLLB and the Aya server. To move the installation later, stop local AI, copy or reinstall the runtime into another folder, update `LOCAL_LLM_ROOT`, update `FAST_TRANSLATION_MODEL_PATH` if needed, and restart LayoutLingo.
 
-```powershell
-# Start or verify the local Aya reviewer
-powershell -ExecutionPolicy Bypass -File D:\DocIntel-LocalAI\start-local-ai.ps1
-powershell -ExecutionPolicy Bypass -File D:\DocIntel-LocalAI\verify-local-ai.ps1
-
-# Stop it when you are finished
-powershell -ExecutionPolicy Bypass -File D:\DocIntel-LocalAI\stop-local-ai.ps1
-```
-
-Use **Enable local AI** in the Quality Dashboard after installation. `Offline Fast NLLB` needs the NLLB model; `Offline Quality NLLB + Aya` needs both NLLB and the Aya server.
+The local models have separate licenses. Review the [NLLB model terms](https://huggingface.co/facebook/nllb-200-distilled-600M) and [Aya model terms](https://huggingface.co/CohereForAI/aya-expanse-8b), especially before commercial use.
 
 ## Configuration
 
@@ -67,8 +60,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 - `SECRET_KEY`: required when `APP_ENV=production`.
 - `HOST`: `127.0.0.1` by default. Set `0.0.0.0` only behind authentication, HTTPS, and a trusted network boundary.
 - `MAX_CONTENT_LENGTH`: `524288000` for a 500 MB upload limit.
-- `FREEMODEL_API_KEY`: optional provider key for online translation and configured analysis features.
-- `LOCAL_LLM_ROOT`: local runtime root, default `D:\DocIntel-LocalAI`.
+- **FreeModel API key (recommended for maximum quality):** sign up at https://freemodel.dev/invite/FRE-f4f1f25c, copy your API key, and add `FREEMODEL_API_KEY=...` to `.env`. Without it, online translation and AI-assisted analysis may be unavailable.
+- `LOCAL_LLM_ROOT`: local runtime root, default `C:\LayoutLingo-LocalAI`.
 
 ## Long documents
 

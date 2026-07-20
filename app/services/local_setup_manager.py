@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-_DEFAULT_ROOT = r'D:\DocIntel-LocalAI'
+_DEFAULT_ROOT = r'C:\LayoutLingo-LocalAI'
 _ESTIMATED_DOWNLOAD_BYTES = 8 * 1024 ** 3
 _RECOMMENDED_FREE_BYTES = 16 * 1024 ** 3
 _lock = threading.RLock()
@@ -29,8 +29,6 @@ def _iso_now() -> str:
 def _normalise_root(value: str | None) -> str:
     root = os.path.abspath(os.path.expanduser((value or _DEFAULT_ROOT).strip()))
     drive, _ = os.path.splitdrive(root)
-    if os.name == 'nt' and (not drive or drive.upper() == 'C:'):
-        raise ValueError('Choose a non-system drive such as D: or E: for local AI.')
     return root
 
 

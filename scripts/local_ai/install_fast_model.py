@@ -12,7 +12,7 @@ MODEL_ID = 'facebook/nllb-200-distilled-600M'
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--root', default=r'D:\DocIntel-LocalAI')
+    parser.add_argument('--root', default=r'C:\LayoutLingo-LocalAI')
     args = parser.parse_args()
 
     root = Path(args.root).expanduser().resolve()
