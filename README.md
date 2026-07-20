@@ -1,5 +1,10 @@
 # LayoutLingo
 
+[![Tests](https://github.com/bytebymint/layoutlingo/actions/workflows/tests.yml/badge.svg)](https://github.com/bytebymint/layoutlingo/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/bytebymint/layoutlingo?include_prereleases&label=release)](https://github.com/bytebymint/layoutlingo/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
+
 **Private, layout-preserving PDF translation with local AI.**
 
 LayoutLingo is a local-first Flask application for translating PDFs while retaining the original document geometry. It supports document analysis, persistent glossaries, translation memory, RTL languages, resumable long-document jobs, and a clear quality-review workflow.
@@ -127,6 +132,24 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 - `MAX_CONTENT_LENGTH`: `524288000` for a 500 MB upload limit.
 - **FreeModel API key (recommended for maximum quality):** sign up at https://freemodel.dev/invite/FRE-f4f1f25c, copy your API key, and add `FREEMODEL_API_KEY=...` to `.env`. Without it, online translation and AI-assisted analysis may be unavailable.
 - `LOCAL_LLM_ROOT`: local runtime root, default `C:\LayoutLingo-LocalAI`.
+
+## Sample PDFs
+
+The `examples/` folder contains small documents that are safe to use for smoke testing:
+
+- `layoutlingo-sample-invoice-3-pages.pdf`: a short business invoice and service summary.
+- `layoutlingo-sample-proposal-5-pages.pdf`: a compact website proposal with structured business language.
+- `layoutlingo-sample-ebook-20-pages.pdf`: a longer story-style ebook sample for translation workflow testing.
+
+Use the 3-page file first to confirm uploads and basic translation. Use the 20-page story when testing checkpointing, review flow, and long-document progress behavior.
+
+## Known limits
+
+- Local translation speed depends heavily on CPU, GPU, RAM, and model size.
+- Layout preservation is strongest on text-based PDFs with normal page structure. Scanned PDFs, complex tables, layered graphics, and dense columns may need review.
+- Automatic QA catches common issues, but legal, medical, financial, and publication-critical documents still need a human reviewer.
+- Very long ebooks should be translated with worker mode enabled and enough free disk space for checkpoints, logs, model caches, and generated PDFs.
+- Online quality mode requires a provider API key and may send selected text to the configured provider.
 
 ## Long documents
 
