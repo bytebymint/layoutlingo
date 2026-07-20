@@ -1,15 +1,24 @@
+import hmac
 import os
-from flask import Flask
+import secrets
+
+from flask import Flask, abort, request, session
+from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
 
 db = SQLAlchemy()
+login_manager = LoginManager()
 
 def create_app(config_class='config.Config'):
     app = Flask(__name__)
     app.config.from_object(config_class)
-    
+    if app.config.get('IS_PRODUCTION') and not app.config.get('SECRET_KEY'):
+        raise RuntimeError('SECRET_KEY must be configured when APP_ENV=production.')
     db.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message_category = 'info'
 
     # Import models within app context to register tables
     from app.models.document import (
@@ -23,19 +32,43 @@ def create_app(config_class='config.Config'):
         TranslationMemoryEntry,
         TranslationReviewIssue,
     )
+    from app.models.user import User
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        try:
+            return db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
 
     # Register Blueprints
     from app.routes.main import main_bp
     from app.routes.api import api_bp
+    from app.routes.auth import auth_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
-    
+    app.register_blueprint(auth_bp)
+
+    @app.before_request
+    def protect_state_changing_requests():
+        """Reject cross-site writes while allowing the test suite to stay lightweight."""
+        if app.testing or request.method not in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+            return None
+        expected = session.get('_csrf_token')
+        provided = request.headers.get('X-CSRF-Token') or request.form.get('csrf_token')
+        if not expected or not provided or not hmac.compare_digest(expected, provided):
+            abort(400, description='Invalid or missing CSRF token.')
+
     # Context processor to expose upload folder size or general variables if needed
     @app.context_processor
     def inject_now():
         from datetime import datetime
-        return {'now': datetime.utcnow()}
+        token = session.get('_csrf_token')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['_csrf_token'] = token
+        return {'now': datetime.utcnow(), 'csrf_token': token}
         
     # Ensure database tables exist
     with app.app_context():

@@ -32,10 +32,13 @@ class Config:
     IS_PRODUCTION = APP_ENV == 'production'
 
     # Flask app configuration
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-ai-doc-intel-12984712')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or (
+        'development-only-layoutlingo-key' if not IS_PRODUCTION else ''
+    )
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SECURE = IS_PRODUCTION
+    SESSION_COOKIE_NAME = 'layoutlingo_session'
     
     # Database config
     # Ensure database folder exists

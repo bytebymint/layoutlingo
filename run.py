@@ -100,6 +100,6 @@ if __name__ == '__main__':
     # Get port from environment or default to 5000
     debug = os.environ.get('FLASK_DEBUG', '0').strip().lower() in {'1', 'true', 'yes'}
     port = int(os.environ.get('PORT', 5000))
-    # Run the server
-    # Set host='0.0.0.0' for local network exposure if needed, default to '127.0.0.1' for development safety
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    # Localhost is the safe default. LAN exposure must be an explicit choice.
+    host = os.environ.get('HOST', '127.0.0.1').strip() or '127.0.0.1'
+    app.run(host=host, port=port, debug=debug)

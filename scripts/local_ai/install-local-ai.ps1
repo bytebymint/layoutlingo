@@ -1,5 +1,6 @@
 param(
-    [string]$Root = 'D:\DocIntel-LocalAI'
+    [string]$Root = 'D:\DocIntel-LocalAI',
+    [switch]$SkipFastTranslator
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,4 +60,49 @@ foreach ($Item in $Environment.GetEnumerator()) {
     [Environment]::SetEnvironmentVariable($Item.Key, $Item.Value, 'User')
 }
 
-Write-Host "Verified llama.cpp $Release and $ModelName under $Root."
+$StartScript = @'
+$ErrorActionPreference = 'Stop'
+$Root = Split-Path -Parent $PSCommandPath
+$Server = Join-Path $Root 'bin\llama.cpp\llama-server.exe'
+$Model = Join-Path $Root 'models\aya-expanse-8b-Q4_K_M.gguf'
+$PidFile = Join-Path $Root 'config\llama-server.pid'
+if (-not (Test-Path -LiteralPath $Server) -or -not (Test-Path -LiteralPath $Model)) {
+    throw 'Local AI is incomplete. Run install-local-ai.ps1 first.'
+}
+if (Test-Path -LiteralPath $PidFile) {
+    $Existing = Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue
+    if ($Existing -and (Get-Process -Id $Existing -ErrorAction SilentlyContinue)) { exit 0 }
+}
+$process = Start-Process -FilePath $Server -ArgumentList @('-m', $Model, '--host', '127.0.0.1', '--port', '8080', '-c', '8192', '-ngl', '0') -PassThru -WindowStyle Hidden
+$process.Id | Set-Content -LiteralPath $PidFile -Encoding ascii
+'@
+$StopScript = @'
+$ErrorActionPreference = 'Stop'
+$Root = Split-Path -Parent $PSCommandPath
+$PidFile = Join-Path $Root 'config\llama-server.pid'
+if (Test-Path -LiteralPath $PidFile) {
+    $ProcessId = Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue
+    if ($ProcessId) { Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue }
+    Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+}
+'@
+$VerifyScript = @'
+$ErrorActionPreference = 'Stop'
+try {
+    $Health = Invoke-RestMethod -Uri 'http://127.0.0.1:8080/health' -TimeoutSec 5
+    Write-Host 'Aya quality reviewer is ready.'
+} catch { throw 'Aya quality reviewer is not running. Use start-local-ai.ps1.' }
+'@
+Set-Content -LiteralPath "$Root\start-local-ai.ps1" -Value $StartScript -Encoding utf8
+Set-Content -LiteralPath "$Root\stop-local-ai.ps1" -Value $StopScript -Encoding utf8
+Set-Content -LiteralPath "$Root\verify-local-ai.ps1" -Value $VerifyScript -Encoding utf8
+
+if (-not $SkipFastTranslator) {
+    $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    $Python = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $Python)) { $Python = 'python' }
+    & $Python (Join-Path $PSScriptRoot 'install_fast_model.py') --root $Root
+    if ($LASTEXITCODE -ne 0) { throw 'NLLB fast translator installation failed.' }
+}
+
+Write-Host "Local AI runtime is ready under $Root. All runtime files and model caches are on D:."

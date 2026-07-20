@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Sign In - DocIntel{% endblock %}
+{% block title %}Sign In | LayoutLingo{% endblock %}
 
 {% block content %}
 <section class="auth-wrapper">
@@ -14,6 +14,7 @@
         </div>
         
         <form action="{{ url_for('auth.login') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="form-group">
                 <label for="login_input">Username or Email</label>
                 <input type="text" id="login_input" name="login_input" class="form-input" placeholder="Enter username or email" required>

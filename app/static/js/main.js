@@ -3,6 +3,19 @@
 (function () {
     'use strict';
 
+    // All browser writes carry the per-session token issued by Flask.
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = function (input, options = {}) {
+        const method = String(options.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        if (!csrfToken || ['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+            return nativeFetch(input, options);
+        }
+        const headers = new Headers(options.headers || (input instanceof Request ? input.headers : undefined));
+        headers.set('X-CSRF-Token', csrfToken);
+        return nativeFetch(input, { ...options, headers });
+    };
+
     // ── Theme toggle ──────────────────────────────────────────
     const html       = document.documentElement;
     const themeBtn   = document.getElementById('theme-toggle');

@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, send_from_directory, current_app, abort
+from flask import Blueprint, abort, current_app, redirect, render_template, request, send_from_directory, url_for
+from flask_login import current_user
 from app.models.document import Document, ChatMessage, DocumentComparison, DocumentTranslation
 from app.services.translation_service import LANGUAGE_OPTIONS, RTL_LANGUAGE_CODES, get_language_label
 import os
@@ -6,9 +7,20 @@ import os
 main_bp = Blueprint('main', __name__)
 
 
-def _document_stats(all_docs):
+@main_bp.before_request
+def require_workspace_login():
+    """The workspace contains private files, so it is never a public index."""
+    if current_app.testing or current_user.is_authenticated:
+        return None
+    return redirect(url_for('auth.login', next=request.full_path))
+
+
+def _document_stats():
     """Return shared, plain-language document counts for workspace pages."""
-    all_docs = Document.query.order_by(Document.created_at.desc()).all()
+    user_id = current_user.id if current_user.is_authenticated else 1
+    all_docs = Document.query.filter_by(user_id=user_id).order_by(
+        Document.created_at.desc()
+    ).all()
     total_docs = len(all_docs)
     completed_docs = sum(1 for d in all_docs if d.status == 'Completed')
     processing_docs = sum(1 for d in all_docs if d.status == 'Processing')
@@ -28,10 +40,11 @@ def _document_stats(all_docs):
 @main_bp.route('/')
 def index():
     """Render the quality dashboard as the product home page."""
-    stats = _document_stats(Document.query.order_by(Document.created_at.desc()).all())
-    translations = DocumentTranslation.query.order_by(
-        DocumentTranslation.created_at.desc()
-    ).all()
+    stats = _document_stats()
+    user_id = current_user.id if current_user.is_authenticated else 1
+    translations = DocumentTranslation.query.join(Document).filter(
+        Document.user_id == user_id
+    ).order_by(DocumentTranslation.created_at.desc()).all()
     document_names = {
         document.id: document.original_filename
         for document in stats['documents']
@@ -85,18 +98,19 @@ def dashboard():
 @main_bp.route('/analyze')
 def analyze_page():
     """Render the document upload and analysis workspace."""
-    return render_template('dashboard.html', **_document_stats(
-        Document.query.order_by(Document.created_at.desc()).all()
-    ))
+    return render_template('dashboard.html', **_document_stats())
 
 
 @main_bp.route('/translate')
 def translate_page():
     """Render the document translation workspace."""
-    stats = _document_stats(Document.query.order_by(Document.created_at.desc()).all())
+    stats = _document_stats()
     all_docs = stats['documents']
 
-    translations = DocumentTranslation.query.order_by(DocumentTranslation.created_at.desc()).all()
+    user_id = current_user.id if current_user.is_authenticated else 1
+    translations = DocumentTranslation.query.join(Document).filter(
+        Document.user_id == user_id
+    ).order_by(DocumentTranslation.created_at.desc()).all()
     translation_rows = []
     for job in translations:
         doc = Document.query.get(job.document_id)
@@ -123,7 +137,8 @@ def translate_page():
 @main_bp.route('/document/<int:doc_id>')
 def document_view(doc_id):
     """View a single processed document with chat interface."""
-    doc = Document.query.get_or_404(doc_id)
+    user_id = current_user.id if current_user.is_authenticated else 1
+    doc = Document.query.filter_by(id=doc_id, user_id=user_id).first_or_404()
     chat_history = ChatMessage.query.filter_by(
         document_id=doc.id
     ).order_by(ChatMessage.created_at.asc()).all()
@@ -133,13 +148,18 @@ def document_view(doc_id):
 @main_bp.route('/uploads/<filename>')
 def serve_uploaded_file(filename):
     """Serve an uploaded file directly (local setup — no auth)."""
+    user_id = current_user.id if current_user.is_authenticated else 1
+    Document.query.filter_by(filename=filename, user_id=user_id).first_or_404()
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
 
 @main_bp.route('/compare')
 def compare_page():
     """Render the AI document comparison dashboard."""
-    completed_docs = Document.query.filter_by(status='Completed').order_by(Document.created_at.desc()).all()
+    user_id = current_user.id if current_user.is_authenticated else 1
+    completed_docs = Document.query.filter_by(
+        status='Completed', user_id=user_id
+    ).order_by(Document.created_at.desc()).all()
     # Fetch all comparisons
     comparisons = DocumentComparison.query.order_by(DocumentComparison.created_at.desc()).all()
     
@@ -147,6 +167,8 @@ def compare_page():
     for c in comparisons:
         doc1 = Document.query.get(c.document_one_id)
         doc2 = Document.query.get(c.document_two_id)
+        if not doc1 or not doc2 or doc1.user_id != user_id or doc2.user_id != user_id:
+            continue
         comparisons_data.append({
             'id': c.id,
             'document_one_name': doc1.original_filename if doc1 else 'Deleted Document',

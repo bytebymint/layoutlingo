@@ -4,7 +4,8 @@ import uuid
 import logging
 import threading
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app, send_from_directory, url_for
+from flask import Blueprint, abort, request, jsonify, current_app, send_from_directory, url_for
+from flask_login import current_user
 from werkzeug.utils import secure_filename
 from app.models.document import (
     ChatMessage,
@@ -25,6 +26,34 @@ from app import db
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint('api', __name__)
+
+
+@api_bp.before_request
+def require_api_login():
+    """Keep document data private outside the isolated test application."""
+    if current_app.testing:
+        return None
+    if not current_user.is_authenticated:
+        return jsonify({'status': 'error', 'message': 'Sign in is required.'}), 401
+    return None
+
+
+def _owned_document_or_404(document_id: int) -> Document:
+    document = Document.query.get_or_404(document_id)
+    if not current_app.testing and document.user_id != current_user.id:
+        abort(404)
+    return document
+
+
+def _owned_translation_or_404(translation_id: int) -> DocumentTranslation:
+    job = DocumentTranslation.query.get_or_404(translation_id)
+    _owned_document_or_404(job.document_id)
+    return job
+
+
+def _request_user_id() -> int:
+    """Keep legacy tests isolated while production always uses the signed-in user."""
+    return current_user.id if current_user.is_authenticated else 1
 
 # FreeModel is used as the AI backend through freemodel_api.py
 
@@ -692,7 +721,7 @@ def upload_document():
         file_size = os.path.getsize(file_path)
 
         doc = Document(
-            user_id=1,
+            user_id=_request_user_id(),
             filename=secure_name,
             original_filename=orig_filename,
             file_path=file_path,
@@ -720,7 +749,7 @@ def upload_document():
 @api_bp.route('/document/<int:doc_id>/status', methods=['GET'])
 def get_document_status(doc_id):
     """Poll the processing status of a document."""
-    doc = Document.query.get_or_404(doc_id)
+    doc = _owned_document_or_404(doc_id)
     return jsonify({
         'id': doc.id,
         'status': doc.status,
@@ -734,7 +763,7 @@ def get_document_status(doc_id):
 @api_bp.route('/document/<int:doc_id>/chat', methods=['POST'])
 def chat_with_document(doc_id):
     """Send a question to a completed document via RAG chat."""
-    doc = Document.query.get_or_404(doc_id)
+    doc = _owned_document_or_404(doc_id)
 
     if doc.status != 'Completed':
         return jsonify({'error': f'Document is {doc.status}. Please wait until processing completes.'}), 400
@@ -777,9 +806,7 @@ def chat_with_document(doc_id):
 def analyze_document_route(doc_id):
     """Generate a structured analysis report for a single document."""
     from app.services.analysis_service import analyze_document
-    doc = Document.query.get(doc_id)
-    if not doc:
-        return jsonify({'status': 'error', 'message': f'Document with id {doc_id} not found.'}), 404
+    doc = _owned_document_or_404(doc_id)
     if not doc.ocr_text:
         return jsonify({'status': 'error', 'message': 'Document OCR text is empty.'}), 400
     try:
@@ -870,9 +897,7 @@ def translate_document_route():
     else:
         provider_model = current_app.config.get('FREEMODEL_MODEL', 'openai-t0')
 
-    doc = Document.query.get(document_id)
-    if not doc:
-        return jsonify({'status': 'error', 'message': f'Document with id {document_id} not found.'}), 404
+    doc = _owned_document_or_404(document_id)
     if doc.status != 'Completed':
         return jsonify({'status': 'error', 'message': f'Document is {doc.status}. Please wait until processing completes.'}), 400
     if not doc.ocr_text:
@@ -1139,7 +1164,12 @@ def start_local_translation_engines():
 def stop_local_translation_engines():
     from app.services.local_engine_manager import stop_local_engines
 
-    active_jobs = DocumentTranslation.query.filter_by(status='Processing').count()
+    active_query = DocumentTranslation.query.filter_by(status='Processing')
+    if not current_app.testing:
+        active_query = active_query.join(Document).filter(
+            Document.user_id == _request_user_id()
+        )
+    active_jobs = active_query.count()
     if active_jobs:
         return jsonify({
             'status': 'busy',
@@ -1209,9 +1239,14 @@ def get_translation_operations_status():
 
     engine = local_engine_control_status()
     live_engines = _live_engine_updates(engine)
-    jobs = DocumentTranslation.query.filter(
+    jobs_query = DocumentTranslation.query.filter(
         DocumentTranslation.status.in_({'Pending', 'Processing', 'NeedsReview'})
-    ).order_by(DocumentTranslation.created_at.asc()).limit(12).all()
+    )
+    if not current_app.testing:
+        jobs_query = jobs_query.join(Document).filter(
+            Document.user_id == _request_user_id()
+        )
+    jobs = jobs_query.order_by(DocumentTranslation.created_at.asc()).limit(12).all()
     processing_jobs = [job for job in jobs if job.status == 'Processing']
     operations = []
     for job in jobs:
@@ -1252,7 +1287,7 @@ def get_translation_operations_status():
 def get_translation_status(translation_id):
     from datetime import datetime
     from app.services.translation_service import get_language_label
-    job = DocumentTranslation.query.get_or_404(translation_id)
+    job = _owned_translation_or_404(translation_id)
     if _release_expired_translation_lease(job, datetime.utcnow()):
         if current_app.config.get('TRANSLATION_WORKER_MODE', 'inline') == 'inline':
             app_instance = current_app._get_current_object()
@@ -1263,7 +1298,7 @@ def get_translation_status(translation_id):
             app_instance = current_app._get_current_object()
             run_translation_async(process_translation_async, app_instance, job.id)
         db.session.refresh(job)
-    doc = Document.query.get(job.document_id)
+    doc = _owned_document_or_404(job.document_id)
     doc_name = doc.original_filename if doc else 'Unknown Document'
     now = datetime.utcnow()
     elapsed_seconds = None
@@ -1338,7 +1373,7 @@ def translation_glossary():
         if not isinstance(entries, list) or len(entries) > 500:
             return jsonify({'status': 'error', 'message': 'Invalid glossary entries.'}), 400
         saved = save_glossary_entries(
-            1,
+            _request_user_id(),
             source_language,
             target_language,
             domain,
@@ -1349,7 +1384,7 @@ def translation_glossary():
     source_language = str(request.args.get('source_language') or '').strip()
     target_language = str(request.args.get('target_language') or '').strip()
     domain = str(request.args.get('domain') or '').strip().lower()
-    query = TranslationGlossaryTerm.query.filter_by(user_id=1, active=True)
+    query = TranslationGlossaryTerm.query.filter_by(user_id=_request_user_id(), active=True)
     if source_language:
         query = query.filter_by(source_language=source_language)
     if target_language:
@@ -1366,7 +1401,9 @@ def translation_glossary():
 
 @api_bp.route('/translation/glossary/<int:term_id>', methods=['DELETE'])
 def delete_translation_glossary_term(term_id):
-    term = TranslationGlossaryTerm.query.get_or_404(term_id)
+    term = TranslationGlossaryTerm.query.filter_by(
+        id=term_id, user_id=_request_user_id()
+    ).first_or_404()
     term.active = False
     db.session.commit()
     return jsonify({'status': 'success', 'deleted': term.id})
@@ -1374,7 +1411,7 @@ def delete_translation_glossary_term(term_id):
 
 @api_bp.route('/translation/<int:translation_id>/cancel', methods=['POST'])
 def cancel_translation(translation_id):
-    job = DocumentTranslation.query.get_or_404(translation_id)
+    job = _owned_translation_or_404(translation_id)
     if job.status in {'Completed', 'Failed', 'Cancelled'}:
         return jsonify({
             'status': job.status,
@@ -1404,7 +1441,7 @@ def resolve_translation_review(translation_id):
         validate_human_translation,
     )
 
-    job = DocumentTranslation.query.get_or_404(translation_id)
+    job = _owned_translation_or_404(translation_id)
     if job.status != 'NeedsReview':
         return jsonify({
             'status': 'error',
@@ -1556,7 +1593,7 @@ def resolve_translation_review(translation_id):
 
 @api_bp.route('/translation/<int:translation_id>/download', methods=['GET'])
 def download_translation(translation_id):
-    job = DocumentTranslation.query.get_or_404(translation_id)
+    job = _owned_translation_or_404(translation_id)
     if job.status != 'Completed' or not job.translated_pdf_path or not os.path.exists(job.translated_pdf_path):
         return jsonify({'status': 'error', 'message': 'Translated PDF is not ready yet.'}), 400
 
@@ -1569,7 +1606,7 @@ def download_translation(translation_id):
 @api_bp.route('/document/<int:doc_id>', methods=['DELETE'])
 def delete_document(doc_id):
     """Delete a document and its associated data permanently."""
-    doc = Document.query.get_or_404(doc_id)
+    doc = _owned_document_or_404(doc_id)
     try:
         if os.path.exists(doc.file_path):
             os.remove(doc.file_path)
@@ -1593,7 +1630,9 @@ def delete_document(doc_id):
 @api_bp.route('/documents', methods=['GET'])
 def list_documents():
     """Return all documents as JSON (for JS polling)."""
-    docs = Document.query.order_by(Document.created_at.desc()).all()
+    docs = Document.query.filter_by(user_id=_request_user_id()).order_by(
+        Document.created_at.desc()
+    ).all()
     return jsonify({'documents': [d.to_dict() for d in docs]})
 
 
@@ -1608,6 +1647,8 @@ def compare_documents_route():
         return jsonify({'status': 'error', 'message': 'Missing document_id_1 or document_id_2 in request payload.'}), 400
 
     try:
+        _owned_document_or_404(doc1_id)
+        _owned_document_or_404(doc2_id)
         # Check database for existing comparison
         existing = DocumentComparison.query.filter_by(
             document_one_id=doc1_id,
@@ -1660,6 +1701,12 @@ def list_comparisons():
     for c in comps:
         doc1 = Document.query.get(c.document_one_id)
         doc2 = Document.query.get(c.document_two_id)
+        if not doc1 or not doc2:
+            continue
+        if not current_app.testing and (
+            doc1.user_id != current_user.id or doc2.user_id != current_user.id
+        ):
+            continue
         results.append({
             'id': c.id,
             'document_one_id': c.document_one_id,
@@ -1676,6 +1723,8 @@ def list_comparisons():
 def delete_comparison(comp_id):
     """Delete a comparison permanently."""
     comp = DocumentComparison.query.get_or_404(comp_id)
+    _owned_document_or_404(comp.document_one_id)
+    _owned_document_or_404(comp.document_two_id)
     try:
         db.session.delete(comp)
         db.session.commit()
