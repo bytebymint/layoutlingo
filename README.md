@@ -37,6 +37,25 @@ Copy-Item .env.example .env
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000), create an account, and upload a document. The upload limit is 500 MB by default.
 
+## Quick start (Linux and macOS)
+
+Install Python 3.11 or newer, Git, and the system packages required by your PDF/OCR dependencies. Then create an isolated environment and start LayoutLingo:
+
+```bash
+git clone https://github.com/bytebymint/layoutlingo.git
+cd layoutlingo
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+cp .env.example .env
+python run.py
+```
+
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000), create an account, and upload a document. To stop the application, press `Ctrl+C`. On macOS, Homebrew users can install Python and Git with `brew install python git`; on Debian or Ubuntu, install them with `sudo apt install python3 python3-venv python3-pip git`.
+
+The application itself runs on Linux and macOS. The bundled one-click local-AI installer currently targets Windows because it downloads and launches the Windows `llama.cpp` server executable. On Linux and macOS, use online mode with a configured provider, or install a compatible local `llama.cpp` runtime and models manually, then point `LOCAL_LLM_ROOT` and `FAST_TRANSLATION_MODEL_PATH` in `.env` at those locations. Verify the runtime command and model format for your operating system before selecting offline mode.
+
 ## Local AI setup
 
 The first time you choose offline translation, the Quality Dashboard opens a guided setup screen. It checks available storage, lets you choose a local folder, shows the download estimate, asks you to accept the model terms, and installs the llama.cpp runtime, Aya reviewer, NLLB fast translator, caches, logs, and temporary files.
