@@ -130,7 +130,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 - `SECRET_KEY`: required when `APP_ENV=production`.
 - `HOST`: `127.0.0.1` by default. Set `0.0.0.0` only behind authentication, HTTPS, and a trusted network boundary.
 - `MAX_CONTENT_LENGTH`: `524288000` for a 500 MB upload limit.
-- **FreeModel API key (recommended for maximum quality):** sign up at https://freemodel.dev/invite/FRE-f4f1f25c, copy your API key, and add `FREEMODEL_API_KEY=...` to `.env`. Without it, online translation and AI-assisted analysis may be unavailable.
+- **OpenAI API key (recommended):** add `OPENAI_API_KEY=...` to `.env` for the best online translation and AI-assisted analysis experience.
+- **FreeModel API key:** if you do not have an OpenAI API key, cannot spend on credits, or live in a region where OpenAI is unavailable, sign up at https://freemodel.dev/invite/FRE-f4f1f25c, copy your API key, and add `FREEMODEL_API_KEY=...` to `.env`.
 - `LOCAL_LLM_ROOT`: local runtime root, default `C:\LayoutLingo-LocalAI`.
 
 ## Sample PDFs
